@@ -714,6 +714,26 @@ function addRow(){
   render();
   toast('⏳ Agregando fila...');
   
+  // --- NUEVO: Efecto de scroll suave hacia el final y resaltado ---
+  setTimeout(() => {
+      let tableArea = document.querySelector('.table-area');
+      if (tableArea) {
+          tableArea.scrollTo({ top: tableArea.scrollHeight, behavior: 'smooth' });
+      }
+      
+      // La fila recién creada la encontramos por cualquier input que tenga su data-id
+      let nuevaFilaInput = document.querySelector(`input[data-id="${id}"]`);
+      if (nuevaFilaInput) {
+          let tr = nuevaFilaInput.closest('tr');
+          if (tr) {
+              tr.style.transition = 'background-color 0.5s';
+              tr.style.backgroundColor = '#fef08a'; 
+              setTimeout(() => tr.style.backgroundColor = '', 2000); 
+          }
+      }
+  }, 100);
+  // ----------------------------------------------------------------
+  
   fetchAppScript({ action: 'addRowRecord', rowData: nr })
     .then(res => {
         if(res.success) toast('✅ Fila agregada a la base de datos');
