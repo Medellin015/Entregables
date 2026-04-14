@@ -144,6 +144,7 @@ th.info-header{background:var(--surface3);border-bottom-color:var(--green)}
 td{
   padding:9px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
   vertical-align:top;color:var(--text2);transition:background .15s;
+  height: 1px; /* TRUCO: Permite que los elementos hijos (height:100%) hereden la altura máxima de la fila */
 }
 tr:hover td{background:var(--surface2)}
 tr.editable td{color:var(--text)}
@@ -163,7 +164,19 @@ td.month-cell.informe-cell.has-value{background:var(--green-bg);color:var(--gree
 .cell-edit:focus{background:var(--surface);box-shadow: 0 0 0 2px var(--accent-glow); border-radius:4px;padding:2px 4px}
 select.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text); max-width: 100%;}
 
-.cell-display{cursor:pointer;padding:2px 4px;border-radius:4px;border:1px solid transparent;min-height:18px;transition:all .15s; white-space: pre-wrap; word-break: break-word;}
+.cell-display{
+  cursor:pointer;
+  padding:9px 12px; /* Adoptar el padding del td */
+  margin:-9px -12px; /* Expandirse sobre el padding del td para llenar toda la celda */
+  border-radius:0; /* Sin borde para encajar perfecto en la celda */
+  border:1px solid transparent;
+  min-height:100%;
+  height:calc(100% + 18px); /* Llenar la altura total incluyendo el margen vertical */
+  display:block;
+  transition:all .15s; 
+  white-space: pre-wrap; 
+  word-break: break-word;
+}
 .cell-display:hover{border-color:var(--border2);background:var(--surface3)}
 .error-flash { animation: errorPulse 1s; }
 @keyframes errorPulse { 0% { background-color: var(--red-bg); } 100% { background-color: transparent; } }
