@@ -74,6 +74,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);ove
 .btn:hover{background:var(--surface3);border-color:var(--border2);color:var(--text);transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,0.05)}
 .btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn-accent:hover{background:#4338ca;border-color:#4338ca;color:#fff}
+.btn-delete { background-color: #fee2e2; color: #ef4444; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; font-weight: bold; }
+.btn-delete:hover { background-color: #ef4444; color: white; }
 
 .role-pill{
   display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);
@@ -145,7 +147,7 @@ td{
 }
 tr:hover td{background:var(--surface2)}
 tr.editable td{color:var(--text)}
-tr.locked td{opacity:0.55}
+tr.locked td{opacity:0.9; color:var(--text); background-color: #f9fafb;}
 
 /* Dynamic cell styles */
 td.col-num{text-align:center;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--accent2)}
@@ -246,8 +248,8 @@ th:hover .filter-btn{opacity:1}
 
 <div id="loadingOverlay">
   <div class="spinner"></div>
-  <h2 id="loadingTitle" style="color: var(--text); font-size: 18px;">Sincronizando con Google Sheets...</h2>
-  <p id="loadingDesc" style="color: var(--text3); font-size: 13px; margin-top: 8px;">Leyendo columnas dinámicamente</p>
+  <h2 id="loadingTitle" style="color: var(--text); font-size: 18px;">Sincronizando con la base de datos...</h2>
+  <p id="loadingDesc" style="color: var(--text3); font-size: 13px; margin-top: 8px;">Cargando información...</p>
 </div>
 
 <div class="app">
@@ -386,7 +388,7 @@ window.onload = function() {
       document.getElementById('loadingOverlay').style.display = 'none';
     })
     .catch(function(error){
-      console.warn("Falló la conexión con Apps Script:", error);
+      console.warn("Falló la conexión con la base de datos:", error);
       document.getElementById('loadingOverlay').style.display = 'none';
       toast('⚠️ Modo Offline o Error de conexión');
       initTopFilters();
@@ -400,8 +402,9 @@ function initTopFilters(){
   
   if (headersOriginales.length === 0) return;
   
+  // Modificado: Ahora busca 'ENLACE' en lugar de 'PROGRAMA'
   let targetCols = headersOriginales.filter(h => 
-     h.toUpperCase().includes('PROGRAMA') || 
+     h.toUpperCase().includes('ENLACE') || 
      h.toUpperCase().includes('PROYECTO') || 
      h.toUpperCase().includes('RESPONSABLE')
   );
@@ -436,7 +439,7 @@ function checkPerm(sub){
 function getColStyle(col) {
     let c = col.toUpperCase().trim();
     if (c === 'N' || c === 'N°' || c === '#') return 'min-width:50px; text-align:center;';
-    if (c.includes('PROGRAMA')) return 'min-width:180px;';
+    if (c.includes('PROGRAMA') || c.includes('ENLACE')) return 'min-width:180px;';
     if (c.includes('PROYECTO') || c.includes('ACTIVIDAD')) return 'min-width:200px;';
     if (c.includes('ENTREGABLE')) return 'min-width:280px;';
     if (c.includes('TIPO')) return 'min-width:120px;';
@@ -488,7 +491,7 @@ function render(){
   
   if(data.length === 0 || headersOriginales.length === 0) {
       thead.innerHTML = '';
-      tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No hay datos en Google Sheets. Asegúrate de tener encabezados en la Fila 1.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No hay datos en la base de datos. Asegúrate de tener encabezados en la Fila 1.</td></tr>';
       document.getElementById('statusBar').innerHTML = '';
       return;
   }
@@ -511,7 +514,9 @@ function render(){
     let fBtn = (isPago || isInforme) ? '' : `<button class="filter-btn ${colFilters[col]?'active':''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
     h += `<th style="${style}" class="${extraClass}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
   });
-  h += '</tr>';
+  
+  // Columna extra para acciones (Eliminar fila)
+  h += '<th style="width: 50px; text-align: center;">⚙️</th></tr>';
   thead.innerHTML = h;
   
   let html = '';
@@ -550,6 +555,11 @@ function render(){
             }
         }
     });
+
+    // Celda de acciones (botón eliminar)
+    let delBtn = (can && currentRole !== 'Invitado') ? `<button class="btn-delete" onclick="eliminarFila('${escapeAttr(r.ID)}')">❌</button>` : '';
+    html += `<td style="text-align:center; vertical-align:middle;">${delBtn}</td>`;
+    
     html += '</tr>';
   });
   
@@ -648,9 +658,9 @@ function onCellChange(el){
     fetchAppScript({ action: 'updateCell', id: id, colName: col, value: v })
       .then(res => {
           if(res.success) {
-              toast('✅ Guardado en Sheets');
+              toast('✅ Guardado en la base de datos');
           } else {
-              revertCellVisualError(id, col, oldVal, el, '❌ Error de Sheets: ' + (res.error || ''));
+              revertCellVisualError(id, col, oldVal, el, '❌ Error de base de datos: ' + (res.error || ''));
           }
       }).catch(e => {
           revertCellVisualError(id, col, oldVal, el, '❌ Falló la conexión al guardar');
@@ -689,7 +699,7 @@ function revertCellVisualError(id, col, oldVal, failedEl, errMsg) {
 
 function addRow(){
   if(currentRole==='Invitado'){toast('⚠️ Modo solo lectura');return}
-  if(headersOriginales.length === 0){toast('⚠️ La tabla está vacía en Sheets');return}
+  if(headersOriginales.length === 0){toast('⚠️ La base de datos está vacía');return}
   
   let id = generateUUID();
   let nr = {};
@@ -706,11 +716,38 @@ function addRow(){
   
   fetchAppScript({ action: 'addRowRecord', rowData: nr })
     .then(res => {
-        if(res.success) toast('✅ Fila agregada a Sheets');
+        if(res.success) toast('✅ Fila agregada a la base de datos');
         else toast('❌ Error al agregar fila');
     }).catch(e => {
         toast('❌ Error de conexión al agregar');
     });
+}
+
+function eliminarFila(id) {
+  let r = data.find(x => x.ID === id);
+  if(!r) return;
+  if(!checkPerm(r.SUBSECRETARIA)) { toast('⚠️ No tienes permisos para eliminar esta fila'); return; }
+  
+  if(confirm("¿Estás seguro de que deseas eliminar esta fila por completo?")) {
+    let rIdx = data.indexOf(r);
+    let deletedRow = data.splice(rIdx, 1)[0];
+    render();
+    toast('⏳ Eliminando fila...');
+
+    fetchAppScript({ action: 'deleteRowRecord', id: id })
+      .then(res => {
+          if(res.success) toast('✅ Fila eliminada de la base de datos');
+          else {
+              data.splice(rIdx, 0, deletedRow); // Revertir visualmente
+              render();
+              toast('❌ Error al eliminar: ' + (res.error || ''));
+          }
+      }).catch(e => {
+          data.splice(rIdx, 0, deletedRow); // Revertir visualmente
+          render();
+          toast('❌ Error de conexión al eliminar');
+      });
+  }
 }
 
 function exportXLSX(){
