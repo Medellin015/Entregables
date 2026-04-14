@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Cronograma de Entregables — Contrato 4600104433</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg: #f3f4f6;          
+  --surface: #ffffff;     
+  --surface2: #f9fafb;    
+  --surface3: #f3f4f6;    
+  --border: #e5e7eb;      
+  --border2: #d1d5db;     
+  --text: #111827;        
+  --text2: #4b5563;       
+  --text3: #6b7280;       
+  --accent: #4f46e5;      
+  --accent2: #6366f1;     
+  --accent-glow: rgba(79, 70, 229, 0.1);
+  --green: #059669;       
+  --green-bg: rgba(5, 150, 105, 0.1);
+  --green-border: rgba(5, 150, 105, 0.3);
+  --amber: #d97706;       
+  --amber-bg: rgba(217, 119, 6, 0.1);
+  --red: #dc2626;         
+  --red-bg: rgba(220, 38, 38, 0.1);
+  --blue: #2563eb;        
+  --blue-bg: rgba(37, 99, 235, 0.1);
+}
+
+/* Fix UX: 100dvh evita que barras de navegación móviles oculten contenido */
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100dvh}
+.app{display:flex;flex-direction:column;height:100dvh}
+
+/* LOADING OVERLAY */
+#loadingOverlay {
+  position: fixed; inset: 0; background: var(--bg); z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.spinner {
+  width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* HEADER */
+.header{
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.5;}
+.header-left{display:flex;align-items:center;gap:16px}
+.logo-mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#0ea5e9);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;letter-spacing:-1px;box-shadow:0 4px 10px rgba(79,70,229,0.2)}
+.header h1{font-size:17px;font-weight:700;letter-spacing:-0.3px;color:var(--text)}
+.header .subtitle{font-size:11.5px;color:var(--text3);margin-top:2px;font-family:'JetBrains Mono',monospace;letter-spacing:0.5px}
+.controls{display:flex;gap:10px;align-items:center}
+.btn{
+  padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);
+  color:var(--text2);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .2s;
+  font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.btn:hover{background:var(--surface3);border-color:var(--border2);color:var(--text);transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+.btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-accent:hover{background:#4338ca;border-color:#4338ca;color:#fff}
+
+.role-pill{
+  display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:4px 4px 4px 12px;font-size:12px;color:var(--text2);
+}
+.role-pill select{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-size:12px;padding:5px 8px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;
+}
+
+/* STATUS BAR */
+.status-bar{
+  background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 24px;
+  display:flex;align-items:center;gap:16px;font-size:12px;flex-wrap:wrap;
+}
+.stat{display:flex;align-items:center;gap:6px;color:var(--text2)}
+.stat-dot{width:7px;height:7px;border-radius:50%}
+.stat-dot.green{background:var(--green)}
+.stat-dot.amber{background:var(--amber)}
+.stat-dot.red{background:var(--red)}
+.stat-val{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)}
+
+/* FILTERS */
+.filters{
+  background:var(--surface);border-bottom:1px solid var(--border);padding:10px 24px;
+  display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+}
+.filter-group{display:flex;align-items:center;gap:6px}
+.filter-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;font-weight:600}
+.filter-select{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-size:12px;padding:6px 10px;font-family:'DM Sans',sans-serif;
+  outline:none;max-width:260px;cursor:pointer;
+}
+.filter-search{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-size:12px;padding:6px 12px;font-family:'DM Sans',sans-serif;
+  outline:none;min-width:200px;
+}
+.filter-search:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+
+/* VIEW TOGGLE */
+.view-toggle{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.view-toggle button{padding:6px 14px;border:none;background:transparent;color:var(--text3);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+.view-toggle button.active{background:var(--accent);color:#fff}
+.view-toggle button:hover:not(.active){background:var(--surface3);color:var(--text)}
+
+/* TABLE AREA */
+.table-area{flex:1;overflow:auto;position:relative;background:var(--surface)}
+.table-area::-webkit-scrollbar{width:8px;height:8px}
+.table-area::-webkit-scrollbar-track{background:var(--surface2)}
+.table-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+thead{position:sticky;top:0;z-index:50}
+th{
+  background:var(--surface2);color:var(--text2);font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.6px;padding:10px 12px;
+  border-bottom:2px solid var(--accent);border-right:1px solid var(--border);
+  white-space:nowrap;cursor:pointer;user-select:none;
+}
+th:hover{background:var(--surface3);color:var(--text)}
+th.month-col{min-width:45px;max-width:55px;text-align:center;font-size:10px;padding:8px 4px;}
+th.info-header{background:var(--surface3);border-bottom-color:var(--green)}
+
+td{
+  padding:9px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
+  vertical-align:top;color:var(--text2);transition:background .15s;
+}
+tr:hover td{background:var(--surface2)}
+tr.editable td{color:var(--text)}
+tr.locked td{opacity:0.55}
+
+/* Dynamic cell styles */
+td.col-num{text-align:center;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--accent2)}
+td.month-cell{
+  text-align:center;padding:6px 2px;min-width:45px;max-width:55px;
+  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;position:relative;
+}
+td.month-cell.has-value{color:var(--text);font-weight:600}
+td.month-cell.pago-cell.has-value{background:var(--blue-bg);color:var(--blue)}
+td.month-cell.informe-cell.has-value{background:var(--green-bg);color:var(--green)}
+
+.cell-edit{width:100%;border:none;background:transparent;color:inherit;font:inherit;outline:none;padding:0;}
+.cell-edit:focus{background:var(--surface);box-shadow: 0 0 0 2px var(--accent-glow); border-radius:4px;padding:2px 4px}
+select.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text); max-width: 100%;}
+
+.cell-display{cursor:pointer;padding:2px 4px;border-radius:4px;border:1px solid transparent;min-height:18px;transition:all .15s; white-space: pre-wrap; word-break: break-word;}
+.cell-display:hover{border-color:var(--border2);background:var(--surface3)}
+.error-flash { animation: errorPulse 1s; }
+@keyframes errorPulse { 0% { background-color: var(--red-bg); } 100% { background-color: transparent; } }
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,0.5);backdrop-filter:blur(4px);z-index:200;justify-content:center;align-items:center}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:0 24px 48px rgba(0,0,0,0.15);max-width:400px;width:90%}
+.modal h3{color:var(--text);font-size:18px;margin-bottom:8px;font-weight:700}
+.modal p{color:var(--text2);font-size:13px;margin-bottom:16px}
+.modal input[type=password]{
+  width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;
+  background:var(--surface);color:var(--text);font-size:14px;outline:none;font-family:'DM Sans',sans-serif;
+}
+.modal input[type=password]:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.error-msg{color:var(--red);font-size:12px;display:none;margin-top:6px}
+
+/* Toast */
+#toast{
+  display:none;position:fixed;bottom:20px;right:20px;
+  background:var(--surface);border:1px solid var(--green-border);color:var(--green);
+  padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:300;
+  box-shadow:0 8px 24px rgba(0,0,0,0.1);
+}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+tr{animation:fadeIn .3s ease both}
+
+/* Column filter popup - UX FIX: position fixed relative to screen */
+.th-wrap{display:flex;align-items:center;gap:4px;justify-content:space-between}
+.th-label{cursor:pointer;flex:1}
+.filter-btn{
+  opacity:0;background:none;border:none;cursor:pointer;font-size:10px;color:var(--text3);
+  padding:2px 5px;border-radius:4px;transition:all .2s;flex-shrink:0;
+}
+.filter-btn:hover{background:var(--surface3);color:var(--accent)}
+th:hover .filter-btn{opacity:1}
+.filter-btn.active{opacity:1;color:var(--accent);background:var(--accent-glow)}
+
+#colFilterPopup{
+  display:none; position:fixed; z-index:500;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:14px;box-shadow:0 16px 40px rgba(0,0,0,0.15);width:280px;
+  font-family:'DM Sans',sans-serif;
+}
+#colFilterPopup .popup-title{
+  font-weight:700;font-size:12px;color:var(--accent);margin-bottom:10px;
+  padding-bottom:8px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+#colFilterPopup .popup-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px}
+#colFilterPopup .popup-close:hover{color:var(--text)}
+#colFilterSearch{
+  width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;
+  background:var(--surface);color:var(--text);font-size:12px;outline:none;
+  margin-bottom:8px;font-family:'DM Sans',sans-serif;
+}
+#colFilterSearch:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
+#colFilterList{max-height:220px;overflow-y:auto;margin-bottom:10px}
+#colFilterList::-webkit-scrollbar{width:5px}
+#colFilterList::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+#colFilterList label{
+  display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:5px;
+  cursor:pointer;font-size:12px;color:var(--text2);transition:background .15s;
+}
+#colFilterList label:hover{background:var(--surface3);color:var(--text)}
+#colFilterList input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+.popup-actions{display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:8px}
+.popup-actions .left{display:flex;gap:5px}
+.popup-mini-btn{
+  padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--surface);
+  color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;
+}
+.popup-mini-btn:hover{background:var(--surface3);color:var(--text)}
+.popup-mini-btn.apply{background:var(--accent);border-color:var(--accent);color:#fff}
+.popup-mini-btn.apply:hover{background:#4338ca}
+
+.empty-state { text-align:center; padding:40px; color:var(--text3); font-size:14px; }
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <h2 id="loadingTitle" style="color: var(--text); font-size: 18px;">Sincronizando con Google Sheets...</h2>
+  <p id="loadingDesc" style="color: var(--text3); font-size: 13px; margin-top: 8px;">Leyendo columnas dinámicamente</p>
+</div>
+
+<div class="app">
+<div class="header">
+<div class="header-left">
+<div class="logo-mark">CE</div>
+<div>
+<h1>Cronograma de Entregables</h1>
+<div class="subtitle">MOD. 3 — CONTRATO 4600104433 / 2025</div>
+</div>
+</div>
+<div class="controls">
+<div class="view-toggle">
+<button class="active" onclick="setViewMode('pagos')">Pagos</button>
+<button onclick="setViewMode('informes')">Informes</button>
+<button onclick="setViewMode('ambos')">Ambos</button>
+</div>
+<button class="btn" onclick="exportXLSX()">💾 Exportar</button>
+<button class="btn btn-accent" onclick="addRow()">＋ Agregar Fila</button>
+<div class="role-pill">
+<span>👤</span>
+<select id="roleSelect">
+<option value="Invitado">Solo Lectura</option>
+<option value="Equipo de Contratación">Equipo de Contratación</option>
+<option value="Subsecretaría de Formación y Participación Ciudadana">Subsec. Formación</option>
+<option value="Subsecretaría de Organización Social">Subsec. Organización</option>
+<option value="Subsecretaría de Planeación Local y PP">Subsec. Planeación</option>
+<option value="Unidad Administrativa">Unidad Administrativa</option>
+</select>
+</div>
+</div>
+</div>
+
+<div class="filters">
+  <div id="dynamicFilters" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;"></div>
+  <div style="flex:1"></div>
+  <!-- Fix UX: Evento para Debounce -->
+  <input type="text" id="searchBox" class="filter-search" placeholder="🔍 Buscar globalmente..." oninput="debounceSearch()">
+  <button class="btn" onclick="clearAllColFilters()" style="font-size:12px">🧹 Quitar Filtros</button>
+</div>
+
+<div class="status-bar" id="statusBar"></div>
+
+<div class="table-area" id="tableArea">
+  <table>
+    <thead id="thead"></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+</div>
+
+<div class="modal-overlay" id="passModal">
+<div class="modal">
+<h3>🔐 Autenticación</h3>
+<p id="passRoleName"></p>
+<input type="password" id="passInput" placeholder="Contraseña" autocomplete="off" onkeydown="if(event.key==='Enter')verifyPass()">
+<div class="error-msg" id="passError">Contraseña incorrecta</div>
+<div class="modal-actions">
+<button class="btn" onclick="cancelPass()">Cancelar</button>
+<button class="btn btn-accent" onclick="verifyPass()">Acceder</button>
+</div>
+</div>
+</div>
+
+<div id="colFilterPopup">
+<div class="popup-title"><span id="popupColName">Columna</span><button class="popup-close" onclick="closeColFilter()">✕</button></div>
+<input type="text" id="colFilterSearch" placeholder="🔍 Buscar..." oninput="searchColFilter()">
+<div id="colFilterList"></div>
+<div class="popup-actions">
+<div class="left">
+<button class="popup-mini-btn" onclick="toggleAllCF(true)">Todos</button>
+<button class="popup-mini-btn" onclick="toggleAllCF(false)">Ninguno</button>
+</div>
+<button class="popup-mini-btn apply" onclick="applyColFilter()">Aplicar</button>
+</div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynOA7tUnBa2JXvw5KtE_DzW7R_ih2UFWUZGnM_nXI5eoQt5hJ09udlLMJW4zXysnM/exec';
+
+// Funciones de Escape para prevenir Inyección XSS (Cross-Site Scripting)
+function escapeHtml(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function escapeAttr(s){ return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Generación robusta de UUIDs (Manejo de concurrencia y colisiones)
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'row_' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
+}
+
+async function fetchAppScript(payload) {
+  try {
+    const response = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow', 
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('HTTP Error: ' + response.status);
+    return await response.json();
+  } catch (error) {
+    console.error("Error en fetchAppScript:", error);
+    throw error;
+  }
+}
+
+// Variables Globales
+let data = [];
+let listasOpciones = {}; 
+let headersOriginales = []; 
+let currentRole = "Invitado";
+let pendingRole = "";
+let viewMode = "pagos";
+let historyStack = [];
+let colFilters = {}; 
+let cfContext = {col:'', key:''};
+let searchTimeout = null; // Para Debounce
+
+// --- CARGA INICIAL ---
+window.onload = function() {
+  fetchAppScript({ action: 'getInitialData' })
+    .then(function(response) {
+      if(response.error) throw new Error(response.error);
+      data = response.rows || [];
+      listasOpciones = response.listas || {};
+      
+      if(data.length > 0) {
+          headersOriginales = Object.keys(data[0]); 
+      }
+      
+      initTopFilters();
+      render();
+      document.getElementById('loadingOverlay').style.display = 'none';
+    })
+    .catch(function(error){
+      console.warn("Falló la conexión con Apps Script:", error);
+      document.getElementById('loadingOverlay').style.display = 'none';
+      toast('⚠️ Modo Offline o Error de conexión');
+      initTopFilters();
+      render();
+    });
+};
+
+function initTopFilters(){
+  let filterContainer = document.getElementById('dynamicFilters');
+  filterContainer.innerHTML = '';
+  
+  if (headersOriginales.length === 0) return;
+  
+  let targetCols = headersOriginales.filter(h => 
+     h.toUpperCase().includes('PROGRAMA') || 
+     h.toUpperCase().includes('PROYECTO') || 
+     h.toUpperCase().includes('RESPONSABLE')
+  );
+
+  targetCols.forEach(col => {
+      let uniqueVals = listasOpciones[col] || [...new Set(data.map(r=>r[col]).filter(Boolean))].sort();
+      let html = `
+      <div class="filter-group">
+        <span class="filter-label">${escapeHtml(col)}</span>
+        <select class="filter-select top-filter" data-col="${escapeAttr(col)}" onchange="render()">
+          <option value="">Todos</option>
+          ${uniqueVals.map(p=>`<option value="${escapeAttr(p)}">${escapeHtml(String(p).substring(0,60))}</option>`).join('')}
+        </select>
+      </div>`;
+      filterContainer.innerHTML += html;
+  });
+}
+
+function setViewMode(m){
+  viewMode = m;
+  document.querySelectorAll('.view-toggle button').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().includes(m==='pagos'?'pago':m==='informes'?'informe':'ambos')));
+  render();
+}
+
+function checkPerm(sub){
+  if(currentRole==='Equipo de Contratación') return true;
+  if(currentRole==='Invitado') return false;
+  if(!sub) return true; 
+  return sub.trim().toUpperCase() === currentRole.trim().toUpperCase();
+}
+
+function getColStyle(col) {
+    let c = col.toUpperCase().trim();
+    if (c === 'N' || c === 'N°' || c === '#') return 'min-width:50px; text-align:center;';
+    if (c.includes('PROGRAMA')) return 'min-width:180px;';
+    if (c.includes('PROYECTO') || c.includes('ACTIVIDAD')) return 'min-width:200px;';
+    if (c.includes('ENTREGABLE')) return 'min-width:280px;';
+    if (c.includes('TIPO')) return 'min-width:120px;';
+    if (c.includes('CORREO') || c.includes('RESPONSABLE')) return 'min-width:160px;';
+    return 'min-width:140px;';
+}
+
+// Mejora de Rendimiento: Debounce para evitar congelamientos al escribir
+function debounceSearch() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => { render(); }, 300);
+}
+
+function getFiltered(){
+  let topFilters = document.querySelectorAll('.top-filter');
+  let searchEl = document.getElementById('searchBox');
+  let s = searchEl ? searchEl.value.toLowerCase() : '';
+  
+  return data.filter(r => {
+    for(let sel of topFilters) {
+        let col = sel.dataset.col;
+        let val = sel.value;
+        if(val && String(r[col]) !== val) return false;
+    }
+    
+    if (s) {
+        let match = false;
+        for(let key of headersOriginales) {
+            if (key !== 'ID' && key !== 'SUBSECRETARIA' && String(r[key]||'').toLowerCase().includes(s)) {
+                match = true; break;
+            }
+        }
+        if(!match) return false;
+    }
+    
+    for(let key in colFilters){
+      if(colFilters[key] && colFilters[key].length > 0){
+        let val = String(r[key]||'').trim();
+        if(!colFilters[key].includes(val)) return false;
+      }
+    }
+    return true;
+  });
+}
+
+function render(){
+  let thead = document.getElementById('thead');
+  let tbody = document.getElementById('tbody');
+  
+  if(data.length === 0 || headersOriginales.length === 0) {
+      thead.innerHTML = '';
+      tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No hay datos en Google Sheets. Asegúrate de tener encabezados en la Fila 1.</td></tr>';
+      document.getElementById('statusBar').innerHTML = '';
+      return;
+  }
+
+  let filtered = getFiltered();
+  let visHeaders = headersOriginales.filter(h => h !== 'ID' && h !== 'SUBSECRETARIA');
+  
+  let h = '<tr>';
+  visHeaders.forEach(col => {
+    let isPago = col.toLowerCase().includes('pago');
+    let isInforme = col.toLowerCase().includes('informe');
+
+    if (viewMode === 'informes' && isPago) return;
+    if (viewMode === 'pagos' && isInforme) return;
+
+    let style = isPago || isInforme ? '' : getColStyle(col);
+    let extraClass = isPago ? ' month-col' : (isInforme ? ' month-col info-header' : '');
+    
+    // Escapando atributos por seguridad XSS
+    let fBtn = (isPago || isInforme) ? '' : `<button class="filter-btn ${colFilters[col]?'active':''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
+    h += `<th style="${style}" class="${extraClass}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
+  });
+  h += '</tr>';
+  thead.innerHTML = h;
+  
+  let html = '';
+  filtered.forEach((r,idx) => {
+    let can = checkPerm(r.SUBSECRETARIA);
+    let cls = can ? 'editable' : 'locked';
+    
+    html += `<tr class="${cls}" style="animation-delay:${idx*0.015}s">`;
+    
+    visHeaders.forEach(col => {
+        let isPago = col.toLowerCase().includes('pago');
+        let isInforme = col.toLowerCase().includes('informe');
+
+        if (viewMode === 'informes' && isPago) return;
+        if (viewMode === 'pagos' && isInforme) return;
+
+        if (isPago || isInforme) {
+            let v = r[col];
+            let hasVal = v !== '' && v !== null && v !== undefined;
+            let disp = hasVal ? (typeof v==='number' && v<=1 ? (v*100).toFixed(0)+'%' : escapeHtml(v)) : '';
+            let cls2 = 'month-cell ' + (isPago ? 'pago-cell' : 'informe-cell') + (hasVal ? ' has-value' : '');
+            
+            let canEditCell = can;
+            if(isPago && currentRole !== 'Equipo de Contratación' && currentRole !== 'Unidad Administrativa' && currentRole !== 'Invitado') canEditCell = false;
+
+            if(canEditCell && currentRole !== 'Invitado') {
+                html += `<td class="${cls2}"><input class="cell-edit" style="width:40px;text-align:center" data-id="${escapeAttr(r.ID)}" data-col="${escapeAttr(col)}" value="${escapeAttr(hasVal?v:'')}"></td>`;
+            } else { 
+                html += `<td class="${cls2}">${disp}</td>`; 
+            }
+        } else {
+            if (col === 'N' || col === 'N°') {
+                html += `<td class="col-num">${escapeHtml(r[col]||'')}</td>`;
+            } else {
+                html += `<td>${mkEditable(r, col, can)}</td>`;
+            }
+        }
+    });
+    html += '</tr>';
+  });
+  
+  tbody.innerHTML = html;
+  attachCellListeners();
+  
+  let total = data.length;
+  let shown = filtered.length;
+  let withResp = headersOriginales.includes('RESPONSABLE') ? filtered.filter(r => r.RESPONSABLE).length : 0;
+  let actFilters = Object.keys(colFilters).length;
+  let filterInfo = actFilters > 0 ? `<div class="stat"><span class="stat-dot red"></span>Filtros activos: <span class="stat-val">${actFilters}</span></div>` : '';
+  
+  document.getElementById('statusBar').innerHTML = 
+    `<div class="stat"><span class="stat-dot green"></span>Mostrando <span class="stat-val">${shown}</span> de ${total}</div>`+
+    (headersOriginales.includes('RESPONSABLE') ? `<div class="stat"><span class="stat-dot amber"></span>Con responsable: <span class="stat-val">${withResp}</span></div>` : '') +
+    filterInfo+
+    `<div class="stat" style="margin-left:auto"><span style="color:var(--text3);font-size:11px">Rol: <strong style="color:var(--accent2)">${escapeHtml(currentRole)}</strong></span></div>`;
+}
+
+function mkEditable(r, col, can){
+  let v = r[col] || '';
+  if(!can || currentRole==='Invitado') return escapeHtml(v);
+  return `<div class="cell-display" onclick="startEdit(this,'${escapeAttr(r.ID)}','${escapeAttr(col)}')">${escapeHtml(v)||'&nbsp;'}</div>`;
+}
+
+// Mejora de Rendimiento: Actualización local sin Renderizar toda la tabla de nuevo
+function startEdit(el, id, col){
+  let r = data.find(x=>x.ID===id);
+  if(!r) return;
+  let v = r[col]||'';
+  let inp;
+  
+  if (listasOpciones[col] && listasOpciones[col].length > 0) {
+      inp = document.createElement('select');
+      inp.className = 'cell-edit';
+      inp.innerHTML = '<option value=""></option>' + listasOpciones[col].map(opt => `<option value="${escapeAttr(opt)}" ${opt===v?'selected':''}>${escapeHtml(opt)}</option>`).join('');
+  } else {
+      inp = document.createElement('input');
+      inp.type = 'text'; 
+      inp.className = 'cell-edit'; 
+      inp.value = v;
+  }
+  
+  inp.dataset.id = id; inp.dataset.col = col;
+  el.replaceWith(inp);
+  inp.focus();
+  
+  const finishEdit = function() {
+      if(inp.dataset.handled) return;
+      inp.dataset.handled = true;
+      onCellChange(inp);
+  };
+
+  inp.addEventListener('blur', finishEdit);
+  if (inp.tagName === 'SELECT') inp.addEventListener('change', () => inp.blur());
+  inp.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); this.blur(); } });
+}
+
+function attachCellListeners() {
+    document.querySelectorAll('input.cell-edit').forEach(inp => {
+        inp.addEventListener('blur', function() { onCellChange(this); });
+        inp.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); this.blur(); } });
+    });
+}
+
+function onCellChange(el){
+  let id = el.dataset.id, col = el.dataset.col;
+  let r = data.find(x=>x.ID===id);
+  if(!r) return;
+  let oldVal = r[col];
+  let v = el.value;
+  
+  let isMonth = col.toLowerCase().includes('pago') || col.toLowerCase().includes('informe');
+  
+  if(isMonth){
+    if(v==='') v = ''; else { v = parseFloat(v); if(isNaN(v)) v = ''; }
+    el.value = v; // Limpiar input a número
+  }
+  
+  if(oldVal !== v){
+    historyStack.push({id, col, oldVal});
+    if(historyStack.length>50) historyStack.shift();
+    r[col] = v;
+    
+    // UI Optimista (Evita llamar a render() para celdas de texto)
+    if(!isMonth){
+        let newDiv = document.createElement('div');
+        newDiv.className = 'cell-display';
+        newDiv.onclick = function() { startEdit(this, id, col); };
+        newDiv.innerHTML = escapeHtml(v) || '&nbsp;';
+        el.replaceWith(newDiv);
+    }
+    
+    toast('⏳ Guardando...');
+    
+    fetchAppScript({ action: 'updateCell', id: id, colName: col, value: v })
+      .then(res => {
+          if(res.success) {
+              toast('✅ Guardado en Sheets');
+          } else {
+              revertCellVisualError(id, col, oldVal, el, '❌ Error de Sheets: ' + (res.error || ''));
+          }
+      }).catch(e => {
+          revertCellVisualError(id, col, oldVal, el, '❌ Falló la conexión al guardar');
+      });
+  } else {
+      // Revertir a visual normal si no hubo cambios
+      if(!isMonth){
+          let newDiv = document.createElement('div');
+          newDiv.className = 'cell-display';
+          newDiv.onclick = function() { startEdit(this, id, col); };
+          newDiv.innerHTML = escapeHtml(oldVal) || '&nbsp;';
+          el.replaceWith(newDiv);
+      }
+  }
+}
+
+// Manejo de Error Visual: Si el servidor falla, revierte la celda
+function revertCellVisualError(id, col, oldVal, failedEl, errMsg) {
+    toast(errMsg);
+    let r = data.find(x=>x.ID===id);
+    if(r) r[col] = oldVal; // Restaura modelo de datos
+    
+    // Para evitar desfases extraños del DOM reconstruimos la tabla por seguridad (fallback seguro)
+    render();
+    
+    // Feedback visual (parpadeo rojo)
+    setTimeout(() => {
+        let td = document.querySelector(`td .cell-display[onclick*="${id}"]`)?.parentElement 
+                 || document.querySelector(`input[data-id="${id}"][data-col="${col}"]`)?.parentElement;
+        if(td) {
+            td.classList.add('error-flash');
+            setTimeout(()=>td.classList.remove('error-flash'), 1000);
+        }
+    }, 50);
+}
+
+function addRow(){
+  if(currentRole==='Invitado'){toast('⚠️ Modo solo lectura');return}
+  if(headersOriginales.length === 0){toast('⚠️ La tabla está vacía en Sheets');return}
+  
+  let id = generateUUID();
+  let nr = {};
+  
+  headersOriginales.forEach(h => nr[h] = '');
+  nr.ID = id;
+  if(headersOriginales.includes('N')) nr.N = data.length + 1;
+  if(headersOriginales.includes('N°')) nr['N°'] = data.length + 1;
+  if(headersOriginales.includes('SUBSECRETARIA')) nr.SUBSECRETARIA = currentRole === 'Equipo de Contratación' ? '' : currentRole;
+  
+  data.push(nr);
+  render();
+  toast('⏳ Agregando fila...');
+  
+  fetchAppScript({ action: 'addRowRecord', rowData: nr })
+    .then(res => {
+        if(res.success) toast('✅ Fila agregada a Sheets');
+        else toast('❌ Error al agregar fila');
+    }).catch(e => {
+        toast('❌ Error de conexión al agregar');
+    });
+}
+
+function exportXLSX(){
+  let filtered = getFiltered();
+  let visHeaders = headersOriginales.filter(h => h !== 'ID' && h !== 'SUBSECRETARIA');
+  
+  let rows = filtered.map(r => {
+    let row = {};
+    visHeaders.forEach(h => row[h] = r[h]);
+    return row;
+  });
+  
+  let ws = XLSX.utils.json_to_sheet(rows, {header: visHeaders});
+  let wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cronograma');
+  ws['!cols'] = visHeaders.map(h => ({wch: h.length > 15 ? 30 : 15}));
+  XLSX.writeFile(wb, 'Cronograma_Entregables.xlsx');
+}
+
+// Auth
+document.getElementById('roleSelect').addEventListener('change', function(){
+  if(this.value==='Invitado'){currentRole='Invitado';render();return}
+  pendingRole = this.value;
+  document.getElementById('passRoleName').textContent = pendingRole;
+  document.getElementById('passInput').value = '';
+  document.getElementById('passError').style.display = 'none';
+  document.getElementById('passModal').style.display = 'flex';
+  setTimeout(()=>document.getElementById('passInput').focus(),100);
+});
+
+function verifyPass(){
+  let inputPass = document.getElementById('passInput').value;
+  let btn = document.querySelector('#passModal .btn-accent');
+  let originalText = btn.textContent;
+  
+  btn.textContent = "Verificando..."; btn.disabled = true;
+
+  fetchAppScript({ action: 'verifyRolePassword', role: pendingRole, password: inputPass })
+    .then(res => {
+        btn.textContent = originalText; btn.disabled = false;
+        if(res.isValid) {
+          currentRole = pendingRole;
+          document.getElementById('passModal').style.display = 'none';
+          render();
+          toast('✅ Autenticado como ' + currentRole);
+        } else {
+          document.getElementById('passError').style.display = 'block';
+        }
+    }).catch(e => {
+        btn.textContent = originalText; btn.disabled = false;
+        alert("Error de conexión: " + e.message);
+    });
+}
+
+function cancelPass(){
+  document.getElementById('passModal').style.display = 'none';
+  document.getElementById('roleSelect').value = currentRole === 'Invitado' ? 'Invitado' : currentRole;
+}
+
+// Undo (Ctrl+Z)
+document.addEventListener('keydown', function(e){
+  if((e.ctrlKey||e.metaKey) && e.key==='z'){
+    if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return;
+    e.preventDefault();
+    if(historyStack.length===0){toast('No hay cambios');return}
+    let last = historyStack.pop();
+    let r = data.find(x=>x.ID===last.id);
+    if(r){
+        r[last.col]=last.oldVal;
+        render();
+        toast('⏳ Deshaciendo...');
+        fetchAppScript({ action: 'updateCell', id: last.id, colName: last.col, value: last.oldVal });
+    }
+  }
+});
+
+let toastTimer;
+function toast(msg){
+  let t = document.getElementById('toast');
+  t.textContent = msg; t.style.display='block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.style.display='none',2500);
+}
+
+// Filtros Columna Popup UX Fix: position fixed
+function openColFilter(e, key, label){
+  cfContext = {col: key, label: label};
+  let saved = colFilters[key]; delete colFilters[key]; 
+  let filtered = getFiltered();
+  if(saved) colFilters[key] = saved; 
+
+  let vals = new Set();
+  filtered.forEach(r => vals.add(String(r[key]||'').trim()));
+  let sorted = Array.from(vals).sort();
+  let selected = colFilters[key] || sorted;
+
+  document.getElementById('popupColName').textContent = label;
+  let listHTML = '';
+  sorted.forEach(v => {
+    let checked = selected.includes(v) ? 'checked' : '';
+    let display = v === '' ? '(Vacío)' : v.length > 50 ? v.substring(0,50)+'…' : v;
+    listHTML += `<label><input type="checkbox" class="cf-cb" value="${escapeAttr(v)}" ${checked}><span>${escapeHtml(display)}</span></label>`;
+  });
+  document.getElementById('colFilterList').innerHTML = listHTML;
+  document.getElementById('colFilterSearch').value = '';
+
+  let popup = document.getElementById('colFilterPopup');
+  popup.style.display = 'block';
+  
+  // UX Fix: Calcula las coordenadas fijas respecto a la ventana, ignorando el scroll de la tabla
+  let rect = e.target.getBoundingClientRect();
+  let topPos = rect.bottom + 5;
+  let leftPos = rect.left - 100;
+  if(leftPos + 280 > window.innerWidth) leftPos = window.innerWidth - 290;
+  if(leftPos < 0) leftPos = 10;
+  
+  popup.style.top = topPos + 'px';
+  popup.style.left = leftPos + 'px';
+}
+
+function closeColFilter(){ document.getElementById('colFilterPopup').style.display = 'none'; }
+
+function searchColFilter(){
+  let q = document.getElementById('colFilterSearch').value.toLowerCase();
+  document.querySelectorAll('#colFilterList label').forEach(l => {
+    let txt = l.textContent.toLowerCase();
+    l.style.display = txt.includes(q) ? 'flex' : 'none';
+  });
+}
+
+function toggleAllCF(check){
+  let hasSearch = document.getElementById('colFilterSearch').value.trim() !== '';
+  document.querySelectorAll('.cf-cb').forEach(cb => {
+    let visible = cb.closest('label').style.display !== 'none';
+    if(hasSearch){ if(visible) cb.checked = check; } else cb.checked = check;
+  });
+}
+
+function applyColFilter(){
+  let selected = [];
+  let hasSearch = document.getElementById('colFilterSearch').value.trim() !== '';
+  let all = document.querySelectorAll('.cf-cb');
+  all.forEach(cb => {
+    let visible = cb.closest('label').style.display !== 'none';
+    if(hasSearch){ if(cb.checked && visible) selected.push(cb.value); } else { if(cb.checked) selected.push(cb.value); }
+  });
+
+  if(!hasSearch && (selected.length === all.length || selected.length === 0)){
+    delete colFilters[cfContext.col];
+  } else { colFilters[cfContext.col] = selected; }
+  closeColFilter();
+  render();
+}
+
+function clearAllColFilters(){
+  colFilters = {};
+  document.querySelectorAll('.top-filter').forEach(f => f.value = '');
+  document.getElementById('searchBox').value = '';
+  render();
+}
+
+document.addEventListener('click', function(e){
+  let popup = document.getElementById('colFilterPopup');
+  if(popup.style.display === 'block' && !popup.contains(e.target) && !e.target.classList.contains('filter-btn')){
+    closeColFilter();
+  }
+});
+</script>
+</body>
+</html>
