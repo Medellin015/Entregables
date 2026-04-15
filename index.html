@@ -263,9 +263,13 @@ th:hover .filter-btn{opacity:1}
 </div>
 <div class="controls">
 <div class="view-toggle">
-<button class="active" onclick="setViewMode('pagos')">Pagos</button>
-<button onclick="setViewMode('informes')">Informes</button>
-<button onclick="setViewMode('ambos')">Ambos</button>
+<button onclick="setViewMode('julio')">Julio</button>
+<button onclick="setViewMode('agosto')">Agosto</button>
+<button onclick="setViewMode('septiembre')">Septiembre</button>
+<button onclick="setViewMode('octubre')">Octubre</button>
+<button onclick="setViewMode('noviembre')">Noviembre</button>
+<button onclick="setViewMode('diciembre')">Diciembre</button>
+<button class="active" onclick="setViewMode('todos')">Todos</button>
 </div>
 <button class="btn" onclick="exportXLSX()">💾 Exportar</button>
 <button class="btn btn-accent" onclick="addRow()">＋ Agregar Fila</button>
@@ -286,7 +290,7 @@ th:hover .filter-btn{opacity:1}
 <div class="filters">
   <div id="dynamicFilters" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;"></div>
   <div style="flex:1"></div>
-  <input type="text" id="searchBox" class="filter-search" placeholder="🔍 Buscar globalmente..." oninput="debounceSearch()">
+  <input type="text" id="searchBox" class="filter-search" placeholder="🔍 Buscar globalmente..." autocomplete="off" name="search_dummy" oninput="debounceSearch()">
   <button class="btn" onclick="clearAllColFilters()" style="font-size:12px">🧹 Quitar Filtros</button>
 </div>
 
@@ -304,7 +308,8 @@ th:hover .filter-btn{opacity:1}
 <div class="modal">
 <h3>🔐 Autenticación</h3>
 <p id="passRoleName"></p>
-<input type="password" id="passInput" placeholder="Contraseña" autocomplete="off" onkeydown="if(event.key==='Enter')verifyPass()">
+<!-- FIX: autocomplete="new-password" evita que el navegador confunda este modal con un login de otra parte de la web -->
+<input type="password" id="passInput" placeholder="Contraseña" autocomplete="new-password" onkeydown="if(event.key==='Enter')verifyPass()">
 <div class="error-msg" id="passError">Contraseña incorrecta</div>
 <div class="modal-actions">
 <button class="btn" onclick="cancelPass()">Cancelar</button>
@@ -315,7 +320,7 @@ th:hover .filter-btn{opacity:1}
 
 <div id="colFilterPopup">
 <div class="popup-title"><span id="popupColName">Columna</span><button class="popup-close" onclick="closeColFilter()">✕</button></div>
-<input type="text" id="colFilterSearch" placeholder="🔍 Buscar..." oninput="searchColFilter()">
+<input type="text" id="colFilterSearch" placeholder="🔍 Buscar..." autocomplete="off" oninput="searchColFilter()">
 <div id="colFilterList"></div>
 <div class="popup-actions">
 <div class="left">
@@ -362,13 +367,13 @@ let listasOpciones = {};
 let headersOriginales = []; 
 let currentRole = "Invitado";
 let pendingRole = "";
-let viewMode = "pagos";
+let viewMode = "todos"; // Por defecto muestra todos
 let historyStack = [];
 let colFilters = {}; 
 let cfContext = {col:'', key:''};
 let searchTimeout = null;
 
-// Variables de Autoguardado por Lotes (Arquitectura Plan de Compras)
+// Variables de Autoguardado por Lotes
 let deltas = { updates: [], adds: [], deletes: [] };
 let isSaving = false;
 let saveTimeoutId = null;
@@ -433,7 +438,7 @@ function initTopFilters(){
 
 function setViewMode(m){
   viewMode = m;
-  document.querySelectorAll('.view-toggle button').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().includes(m==='pagos'?'pago':m==='informes'?'informe':'ambos')));
+  document.querySelectorAll('.view-toggle button').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === m));
   render();
 }
 
@@ -508,16 +513,19 @@ function render(){
   
   let h = '<tr>';
   visHeaders.forEach(col => {
-    let isPago = col.toLowerCase().includes('pago');
-    let isInforme = col.toLowerCase().includes('informe');
-
-    if (viewMode === 'informes' && isPago) return;
-    if (viewMode === 'pagos' && isInforme) return;
-
-    let style = isPago || isInforme ? '' : getColStyle(col);
-    let extraClass = isPago ? ' month-col' : (isInforme ? ' month-col info-header' : '');
+    let isMonthColumn = col.toLowerCase().includes('pago') || col.toLowerCase().includes('informe');
     
-    let fBtn = (isPago || isInforme) ? '' : `<button class="filter-btn ${colFilters[col]?'active':''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
+    // Lógica para filtrar columnas por mes
+    if (isMonthColumn && viewMode !== 'todos') {
+        let colLower = col.toLowerCase();
+        let shouldShow = colLower.includes(viewMode) || colLower.includes(viewMode.substring(0,3)); // Busca 'julio' o 'jul'
+        if(!shouldShow) return; 
+    }
+
+    let style = isMonthColumn ? '' : getColStyle(col);
+    let extraClass = isMonthColumn ? ' month-col' + (col.toLowerCase().includes('informe') ? ' info-header' : '') : '';
+    
+    let fBtn = isMonthColumn ? '' : `<button class="filter-btn ${colFilters[col]?'active':''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
     h += `<th style="${style}" class="${extraClass}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
   });
   
@@ -534,11 +542,15 @@ function render(){
     visHeaders.forEach(col => {
         let isPago = col.toLowerCase().includes('pago');
         let isInforme = col.toLowerCase().includes('informe');
+        let isMonthColumn = isPago || isInforme;
 
-        if (viewMode === 'informes' && isPago) return;
-        if (viewMode === 'pagos' && isInforme) return;
+        if (isMonthColumn && viewMode !== 'todos') {
+            let colLower = col.toLowerCase();
+            let shouldShow = colLower.includes(viewMode) || colLower.includes(viewMode.substring(0,3));
+            if(!shouldShow) return; 
+        }
 
-        if (isPago || isInforme) {
+        if (isMonthColumn) {
             let v = r[col];
             let hasVal = v !== '' && v !== null && v !== undefined;
             let disp = hasVal ? (typeof v==='number' && v<=1 ? (v*100).toFixed(0)+'%' : escapeHtml(v)) : '';
@@ -604,6 +616,9 @@ function startEdit(el, id, col){
       inp.type = 'text'; 
       inp.className = 'cell-edit'; 
       inp.value = v;
+      // FIX: Evita que navegadores agresivos como Chrome asuman que este input enlazado a la tabla es un usuario/contraseña
+      inp.setAttribute('autocomplete', 'off');
+      inp.setAttribute('name', 'campo_dinamico_' + Math.random().toString(36).substring(7));
   }
   
   inp.dataset.id = id; inp.dataset.col = col;
@@ -656,10 +671,10 @@ function onCellChange(el){
         el.replaceWith(newDiv);
     }
     
-    // Acumular en deltas (igual que Plan de Compras)
+    // Acumular en deltas 
     let addObj = deltas.adds.find(a => a.ID === id);
     if (addObj) {
-        addObj[col] = v; // Modificar el add directamente
+        addObj[col] = v; 
     } else {
         let u = deltas.updates.find(x => x.id === id && x.field === col);
         if (u) u.value = v; else deltas.updates.push({ id, field: col, value: v });
@@ -725,7 +740,6 @@ function eliminarFila(id) {
     historyStack.push({ type: 'delete', row: deletedRow, index: rIdx });
     if(historyStack.length > 50) historyStack.shift();
 
-    // Acumular en deltas (igual que Plan de Compras)
     deltas.deletes.push(id);
     deltas.adds = deltas.adds.filter(a => a.ID !== id);
     deltas.updates = deltas.updates.filter(u => u.id !== id);
@@ -735,9 +749,6 @@ function eliminarFila(id) {
   }
 }
 
-// ==============================================================================
-// AUTOGUARDADO POR LOTES (Arquitectura idéntica a Plan de Compras)
-// ==============================================================================
 function triggerAutoSave() {
     if (currentRole === 'Invitado') return;
     hasUnsavedChanges = true;
@@ -795,12 +806,10 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
             }
         }
 
-        // Todos los reintentos fallaron: restaurar deltas
         deltas.updates.unshift(...snapshot.updates);
         deltas.adds.unshift(...snapshot.adds);
         deltas.deletes.unshift(...snapshot.deletes);
 
-        // Dedup updates
         let seen = new Map();
         for (let idx = deltas.updates.length - 1; idx >= 0; idx--) {
             let key = deltas.updates[idx].id + '||' + deltas.updates[idx].field;
@@ -837,7 +846,6 @@ function exportXLSX(){
   XLSX.writeFile(wb, 'Cronograma_Entregables.xlsx');
 }
 
-// Auth
 document.getElementById('roleSelect').addEventListener('change', function(){
   if(this.value==='Invitado'){currentRole='Invitado';render();return}
   pendingRole = this.value;
@@ -877,7 +885,6 @@ function cancelPass(){
   document.getElementById('roleSelect').value = currentRole === 'Invitado' ? 'Invitado' : currentRole;
 }
 
-// Undo (Ctrl+Z) — Ahora usa deltas en vez de llamadas directas al servidor
 document.addEventListener('keydown', function(e){
   if((e.ctrlKey||e.metaKey) && e.key==='z'){
     if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return;
@@ -886,15 +893,12 @@ document.addEventListener('keydown', function(e){
     let last = historyStack.pop();
     
     if (last.type === 'delete') {
-        // Restaurar fila eliminada
         data.splice(last.index, 0, last.row);
         
-        // Si el delete aún está en deltas (no enviado), simplemente quitarlo
         let dIdx = deltas.deletes.indexOf(last.row.ID);
         if (dIdx !== -1) {
             deltas.deletes.splice(dIdx, 1);
         } else {
-            // Ya se envió al servidor, necesitamos re-agregar
             deltas.adds.push(last.row);
         }
         
@@ -902,7 +906,6 @@ document.addEventListener('keydown', function(e){
         triggerAutoSave();
         toast('✅ Fila restaurada');
     } else {
-        // Restaurar cambio de celda
         let r = data.find(x=>x.ID===last.id);
         if(r){
             r[last.col] = last.oldVal;
@@ -931,7 +934,6 @@ function toast(msg){
   toastTimer = setTimeout(()=>t.style.display='none',2500);
 }
 
-// Filtros Columna Popup
 function openColFilter(e, key, label){
   cfContext = {col: key, label: label};
   let saved = colFilters[key]; delete colFilters[key]; 
