@@ -32,11 +32,9 @@
   --blue-bg: rgba(37, 99, 235, 0.1);
 }
 
-/* Fix UX: 100dvh evita que barras de navegación móviles oculten contenido */
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100dvh}
 .app{display:flex;flex-direction:column;height:100dvh}
 
-/* LOADING OVERLAY */
 #loadingOverlay {
   position: fixed; inset: 0; background: var(--bg); z-index: 9999;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -47,7 +45,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);ove
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* HEADER */
 .header{
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -86,7 +83,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);ove
   color:var(--text);font-size:12px;padding:5px 8px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;
 }
 
-/* STATUS BAR */
 .status-bar{
   background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 24px;
   display:flex;align-items:center;gap:16px;font-size:12px;flex-wrap:wrap;
@@ -98,7 +94,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);ove
 .stat-dot.red{background:var(--red)}
 .stat-val{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)}
 
-/* FILTERS */
 .filters{
   background:var(--surface);border-bottom:1px solid var(--border);padding:10px 24px;
   display:flex;gap:12px;align-items:center;flex-wrap:wrap;
@@ -117,13 +112,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);ove
 }
 .filter-search:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
 
-/* VIEW TOGGLE */
 .view-toggle{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .view-toggle button{padding:6px 14px;border:none;background:transparent;color:var(--text3);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
 .view-toggle button.active{background:var(--accent);color:#fff}
 .view-toggle button:hover:not(.active){background:var(--surface3);color:var(--text)}
 
-/* TABLE AREA */
 .table-area{flex:1;overflow:auto;position:relative;background:var(--surface)}
 .table-area::-webkit-scrollbar{width:8px;height:8px}
 .table-area::-webkit-scrollbar-track{background:var(--surface2)}
@@ -144,13 +137,12 @@ th.info-header{background:var(--surface3);border-bottom-color:var(--green)}
 td{
   padding:9px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
   vertical-align:top;color:var(--text2);transition:background .15s;
-  height: 1px; /* TRUCO: Permite que los elementos hijos (height:100%) hereden la altura máxima de la fila */
+  height: 1px;
 }
 tr:hover td{background:var(--surface2)}
 tr.editable td{color:var(--text)}
 tr.locked td{opacity:0.9; color:var(--text); background-color: #f9fafb;}
 
-/* Dynamic cell styles */
 td.col-num{text-align:center;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--accent2)}
 td.month-cell{
   text-align:center;padding:6px 2px;min-width:45px;max-width:55px;
@@ -166,22 +158,19 @@ select.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(-
 
 .cell-display{
   cursor:pointer;
-  padding:9px 12px; /* Adoptar el padding del td */
-  margin:-9px -12px; /* Expandirse sobre el padding del td para llenar toda la celda */
-  border-radius:0; /* Sin borde para encajar perfecto en la celda */
+  padding:9px 12px;
+  margin:-9px -12px;
+  border-radius:0;
   border:1px solid transparent;
   min-height:100%;
-  height:calc(100% + 18px); /* Llenar la altura total incluyendo el margen vertical */
+  height:calc(100% + 18px);
   display:block;
   transition:all .15s; 
   white-space: pre-wrap; 
   word-break: break-word;
 }
 .cell-display:hover{border-color:var(--border2);background:var(--surface3)}
-.error-flash { animation: errorPulse 1s; }
-@keyframes errorPulse { 0% { background-color: var(--red-bg); } 100% { background-color: transparent; } }
 
-/* Modal */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,0.5);backdrop-filter:blur(4px);z-index:200;justify-content:center;align-items:center}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:0 24px 48px rgba(0,0,0,0.15);max-width:400px;width:90%}
 .modal h3{color:var(--text);font-size:18px;margin-bottom:8px;font-weight:700}
@@ -194,7 +183,6 @@ select.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(-
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
 .error-msg{color:var(--red);font-size:12px;display:none;margin-top:6px}
 
-/* Toast */
 #toast{
   display:none;position:fixed;bottom:20px;right:20px;
   background:var(--surface);border:1px solid var(--green-border);color:var(--green);
@@ -205,7 +193,6 @@ select.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(-
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 tr{animation:fadeIn .3s ease both}
 
-/* Column filter popup - UX FIX: position fixed relative to screen */
 .th-wrap{display:flex;align-items:center;gap:4px;justify-content:space-between}
 .th-label{cursor:pointer;flex:1}
 .filter-btn{
@@ -299,7 +286,6 @@ th:hover .filter-btn{opacity:1}
 <div class="filters">
   <div id="dynamicFilters" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;"></div>
   <div style="flex:1"></div>
-  <!-- Fix UX: Evento para Debounce -->
   <input type="text" id="searchBox" class="filter-search" placeholder="🔍 Buscar globalmente..." oninput="debounceSearch()">
   <button class="btn" onclick="clearAllColFilters()" style="font-size:12px">🧹 Quitar Filtros</button>
 </div>
@@ -346,11 +332,9 @@ th:hover .filter-btn{opacity:1}
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynOA7tUnBa2JXvw5KtE_DzW7R_ih2UFWUZGnM_nXI5eoQt5hJ09udlLMJW4zXysnM/exec';
 
-// Funciones de Escape para prevenir Inyección XSS (Cross-Site Scripting)
 function escapeHtml(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function escapeAttr(s){ return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// Generación robusta de UUIDs (Manejo de concurrencia y colisiones)
 function generateUUID() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return 'row_' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
@@ -382,7 +366,19 @@ let viewMode = "pagos";
 let historyStack = [];
 let colFilters = {}; 
 let cfContext = {col:'', key:''};
-let searchTimeout = null; // Para Debounce
+let searchTimeout = null;
+
+// Variables de Autoguardado por Lotes (Arquitectura Plan de Compras)
+let deltas = { updates: [], adds: [], deletes: [] };
+let isSaving = false;
+let saveTimeoutId = null;
+let hasUnsavedChanges = false;
+
+window.addEventListener('beforeunload', function(e) {
+    if (hasUnsavedChanges || saveTimeoutId || isSaving) {
+        e.preventDefault(); e.returnValue = 'Tienes cambios sin guardar.';
+    }
+});
 
 // --- CARGA INICIAL ---
 window.onload = function() {
@@ -415,7 +411,6 @@ function initTopFilters(){
   
   if (headersOriginales.length === 0) return;
   
-  // Modificado: Ahora busca 'ENLACE' en lugar de 'PROGRAMA'
   let targetCols = headersOriginales.filter(h => 
      h.toUpperCase().includes('ENLACE') || 
      h.toUpperCase().includes('PROYECTO') || 
@@ -460,7 +455,6 @@ function getColStyle(col) {
     return 'min-width:140px;';
 }
 
-// Mejora de Rendimiento: Debounce para evitar congelamientos al escribir
 function debounceSearch() {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(() => { render(); }, 300);
@@ -523,12 +517,10 @@ function render(){
     let style = isPago || isInforme ? '' : getColStyle(col);
     let extraClass = isPago ? ' month-col' : (isInforme ? ' month-col info-header' : '');
     
-    // Escapando atributos por seguridad XSS
     let fBtn = (isPago || isInforme) ? '' : `<button class="filter-btn ${colFilters[col]?'active':''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
     h += `<th style="${style}" class="${extraClass}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
   });
   
-  // Columna extra para acciones (Eliminar fila)
   h += '<th style="width: 50px; text-align: center;">⚙️</th></tr>';
   thead.innerHTML = h;
   
@@ -569,7 +561,6 @@ function render(){
         }
     });
 
-    // Celda de acciones (botón eliminar)
     let delBtn = (can && currentRole !== 'Invitado') ? `<button class="btn-delete" onclick="eliminarFila('${escapeAttr(r.ID)}')">❌</button>` : '';
     html += `<td style="text-align:center; vertical-align:middle;">${delBtn}</td>`;
     
@@ -598,7 +589,6 @@ function mkEditable(r, col, can){
   return `<div class="cell-display" onclick="startEdit(this,'${escapeAttr(r.ID)}','${escapeAttr(col)}')">${escapeHtml(v)||'&nbsp;'}</div>`;
 }
 
-// Mejora de Rendimiento: Actualización local sin Renderizar toda la tabla de nuevo
 function startEdit(el, id, col){
   let r = data.find(x=>x.ID===id);
   if(!r) return;
@@ -649,7 +639,7 @@ function onCellChange(el){
   
   if(isMonth){
     if(v==='') v = ''; else { v = parseFloat(v); if(isNaN(v)) v = ''; }
-    el.value = v; // Limpiar input a número
+    el.value = v;
   }
   
   if(oldVal !== v){
@@ -657,7 +647,7 @@ function onCellChange(el){
     if(historyStack.length>50) historyStack.shift();
     r[col] = v;
     
-    // UI Optimista (Evita llamar a render() para celdas de texto)
+    // UI Optimista
     if(!isMonth){
         let newDiv = document.createElement('div');
         newDiv.className = 'cell-display';
@@ -666,20 +656,17 @@ function onCellChange(el){
         el.replaceWith(newDiv);
     }
     
-    toast('⏳ Guardando...');
+    // Acumular en deltas (igual que Plan de Compras)
+    let addObj = deltas.adds.find(a => a.ID === id);
+    if (addObj) {
+        addObj[col] = v; // Modificar el add directamente
+    } else {
+        let u = deltas.updates.find(x => x.id === id && x.field === col);
+        if (u) u.value = v; else deltas.updates.push({ id, field: col, value: v });
+    }
     
-    fetchAppScript({ action: 'updateCell', id: id, colName: col, value: v })
-      .then(res => {
-          if(res.success) {
-              toast('✅ Guardado en la base de datos');
-          } else {
-              revertCellVisualError(id, col, oldVal, el, '❌ Error de base de datos: ' + (res.error || ''));
-          }
-      }).catch(e => {
-          revertCellVisualError(id, col, oldVal, el, '❌ Falló la conexión al guardar');
-      });
+    triggerAutoSave();
   } else {
-      // Revertir a visual normal si no hubo cambios
       if(!isMonth){
           let newDiv = document.createElement('div');
           newDiv.className = 'cell-display';
@@ -688,26 +675,6 @@ function onCellChange(el){
           el.replaceWith(newDiv);
       }
   }
-}
-
-// Manejo de Error Visual: Si el servidor falla, revierte la celda
-function revertCellVisualError(id, col, oldVal, failedEl, errMsg) {
-    toast(errMsg);
-    let r = data.find(x=>x.ID===id);
-    if(r) r[col] = oldVal; // Restaura modelo de datos
-    
-    // Para evitar desfases extraños del DOM reconstruimos la tabla por seguridad (fallback seguro)
-    render();
-    
-    // Feedback visual (parpadeo rojo)
-    setTimeout(() => {
-        let td = document.querySelector(`td .cell-display[onclick*="${id}"]`)?.parentElement 
-                 || document.querySelector(`input[data-id="${id}"][data-col="${col}"]`)?.parentElement;
-        if(td) {
-            td.classList.add('error-flash');
-            setTimeout(()=>td.classList.remove('error-flash'), 1000);
-        }
-    }, 50);
 }
 
 function addRow(){
@@ -724,17 +691,16 @@ function addRow(){
   if(headersOriginales.includes('SUBSECRETARIA')) nr.SUBSECRETARIA = currentRole === 'Equipo de Contratación' ? '' : currentRole;
   
   data.push(nr);
-  render();
-  toast('⏳ Agregando fila...');
+  deltas.adds.push(nr);
   
-  // --- NUEVO: Efecto de scroll suave hacia el final y resaltado ---
+  render();
+  triggerAutoSave();
+  
   setTimeout(() => {
       let tableArea = document.querySelector('.table-area');
       if (tableArea) {
           tableArea.scrollTo({ top: tableArea.scrollHeight, behavior: 'smooth' });
       }
-      
-      // La fila recién creada la encontramos por cualquier input que tenga su data-id
       let nuevaFilaInput = document.querySelector(`input[data-id="${id}"]`);
       if (nuevaFilaInput) {
           let tr = nuevaFilaInput.closest('tr');
@@ -745,15 +711,6 @@ function addRow(){
           }
       }
   }, 100);
-  // ----------------------------------------------------------------
-  
-  fetchAppScript({ action: 'addRowRecord', rowData: nr })
-    .then(res => {
-        if(res.success) toast('✅ Fila agregada a la base de datos');
-        else toast('❌ Error al agregar fila');
-    }).catch(e => {
-        toast('❌ Error de conexión al agregar');
-    });
 }
 
 function eliminarFila(id) {
@@ -765,29 +722,102 @@ function eliminarFila(id) {
     let rIdx = data.indexOf(r);
     let deletedRow = data.splice(rIdx, 1)[0];
     
-    // Añadir al historial para permitir Ctrl+Z
     historyStack.push({ type: 'delete', row: deletedRow, index: rIdx });
     if(historyStack.length > 50) historyStack.shift();
 
-    render();
-    toast('⏳ Eliminando fila...');
+    // Acumular en deltas (igual que Plan de Compras)
+    deltas.deletes.push(id);
+    deltas.adds = deltas.adds.filter(a => a.ID !== id);
+    deltas.updates = deltas.updates.filter(u => u.id !== id);
 
-    fetchAppScript({ action: 'deleteRowRecord', id: id })
-      .then(res => {
-          if(res.success) toast('✅ Fila eliminada (Ctrl+Z para deshacer)');
-          else {
-              data.splice(rIdx, 0, deletedRow); // Revertir visualmente
-              historyStack.pop(); // Quitar del historial porque falló
-              render();
-              toast('❌ Error al eliminar: ' + (res.error || ''));
-          }
-      }).catch(e => {
-          data.splice(rIdx, 0, deletedRow); // Revertir visualmente
-          historyStack.pop(); // Quitar del historial porque falló
-          render();
-          toast('❌ Error de conexión al eliminar');
-      });
+    render();
+    triggerAutoSave();
   }
+}
+
+// ==============================================================================
+// AUTOGUARDADO POR LOTES (Arquitectura idéntica a Plan de Compras)
+// ==============================================================================
+function triggerAutoSave() {
+    if (currentRole === 'Invitado') return;
+    hasUnsavedChanges = true;
+    toast('⏳ Guardando...');
+    if (saveTimeoutId) clearTimeout(saveTimeoutId);
+    saveTimeoutId = setTimeout(() => { ejecutarGuardadoSilencioso(); }, 2500);
+}
+
+async function ejecutarGuardadoSilencioso(intentos = 3) {
+    if (isSaving) return;
+
+    if (deltas.updates.length === 0 && deltas.adds.length === 0 && deltas.deletes.length === 0) {
+        return;
+    }
+
+    isSaving = true;
+
+    try {
+        const snapshot = {
+            adds: [...deltas.adds],
+            updates: [...deltas.updates],
+            deletes: [...deltas.deletes]
+        };
+
+        deltas = { updates: [], adds: [], deletes: [] };
+
+        const payload = {
+            action: 'validarYGuardarDeltas',
+            requestId: generateUUID(),
+            deltas: snapshot
+        };
+
+        for (let i = 0; i < intentos; i++) {
+            try {
+                const result = await fetchAppScript(payload);
+
+                if (result.status === 'success' || result.status === 'duplicate') {
+                    hasUnsavedChanges = false;
+                    saveTimeoutId = null;
+                    toast('✅ Guardado');
+
+                    if (result.report) {
+                        let ignorados = result.report.updatesIgnorados || [];
+                        if (ignorados.length > 0) {
+                            toast('⚠️ ' + ignorados.length + ' cambio(s) no se aplicaron porque las filas ya no existen.');
+                        }
+                        if ((result.report.addsDuplicados || 0) > 0) {
+                            toast('ℹ️ ' + result.report.addsDuplicados + ' fila(s) ya existían y no se duplicaron.');
+                        }
+                    }
+                    return;
+                }
+            } catch (error) {
+                if (i < intentos - 1) { await new Promise(r => setTimeout(r, 2000 * (i + 1))); }
+            }
+        }
+
+        // Todos los reintentos fallaron: restaurar deltas
+        deltas.updates.unshift(...snapshot.updates);
+        deltas.adds.unshift(...snapshot.adds);
+        deltas.deletes.unshift(...snapshot.deletes);
+
+        // Dedup updates
+        let seen = new Map();
+        for (let idx = deltas.updates.length - 1; idx >= 0; idx--) {
+            let key = deltas.updates[idx].id + '||' + deltas.updates[idx].field;
+            if (seen.has(key)) { deltas.updates.splice(idx, 1); }
+            else { seen.set(key, true); }
+        }
+
+        hasUnsavedChanges = true;
+        saveTimeoutId = null;
+        toast('❌ Error al guardar. Reintentando...');
+    } finally {
+        isSaving = false;
+
+        if (deltas.updates.length > 0 || deltas.adds.length > 0 || deltas.deletes.length > 0) {
+            triggerAutoSave();
+        }
+    }
 }
 
 function exportXLSX(){
@@ -847,7 +877,7 @@ function cancelPass(){
   document.getElementById('roleSelect').value = currentRole === 'Invitado' ? 'Invitado' : currentRole;
 }
 
-// Undo (Ctrl+Z)
+// Undo (Ctrl+Z) — Ahora usa deltas en vez de llamadas directas al servidor
 document.addEventListener('keydown', function(e){
   if((e.ctrlKey||e.metaKey) && e.key==='z'){
     if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return;
@@ -858,23 +888,36 @@ document.addEventListener('keydown', function(e){
     if (last.type === 'delete') {
         // Restaurar fila eliminada
         data.splice(last.index, 0, last.row);
-        render();
-        toast('⏳ Restaurando fila...');
         
-        // Reinsertar en Google Sheets usando el backend existente
-        fetchAppScript({ action: 'addRowRecord', rowData: last.row })
-          .then(res => {
-              if(res.success) toast('✅ Fila restaurada');
-              else toast('❌ Error al restaurar fila en la base de datos');
-          }).catch(err => toast('❌ Error de conexión al restaurar'));
+        // Si el delete aún está en deltas (no enviado), simplemente quitarlo
+        let dIdx = deltas.deletes.indexOf(last.row.ID);
+        if (dIdx !== -1) {
+            deltas.deletes.splice(dIdx, 1);
+        } else {
+            // Ya se envió al servidor, necesitamos re-agregar
+            deltas.adds.push(last.row);
+        }
+        
+        render();
+        triggerAutoSave();
+        toast('✅ Fila restaurada');
     } else {
-        // Restaurar cambio de celda normal
+        // Restaurar cambio de celda
         let r = data.find(x=>x.ID===last.id);
         if(r){
-            r[last.col]=last.oldVal;
+            r[last.col] = last.oldVal;
+            
+            let addObj = deltas.adds.find(a => a.ID === last.id);
+            if (addObj) {
+                addObj[last.col] = last.oldVal;
+            } else {
+                let u = deltas.updates.find(x => x.id === last.id && x.field === last.col);
+                if (u) u.value = last.oldVal; else deltas.updates.push({ id: last.id, field: last.col, value: last.oldVal });
+            }
+            
             render();
-            toast('⏳ Deshaciendo...');
-            fetchAppScript({ action: 'updateCell', id: last.id, colName: last.col, value: last.oldVal });
+            triggerAutoSave();
+            toast('✅ Deshecho');
         }
     }
   }
@@ -888,7 +931,7 @@ function toast(msg){
   toastTimer = setTimeout(()=>t.style.display='none',2500);
 }
 
-// Filtros Columna Popup UX Fix: position fixed
+// Filtros Columna Popup
 function openColFilter(e, key, label){
   cfContext = {col: key, label: label};
   let saved = colFilters[key]; delete colFilters[key]; 
@@ -913,7 +956,6 @@ function openColFilter(e, key, label){
   let popup = document.getElementById('colFilterPopup');
   popup.style.display = 'block';
   
-  // UX Fix: Calcula las coordenadas fijas respecto a la ventana, ignorando el scroll de la tabla
   let rect = e.target.getBoundingClientRect();
   let topPos = rect.bottom + 5;
   let leftPos = rect.left - 100;
