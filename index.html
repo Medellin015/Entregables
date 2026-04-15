@@ -149,12 +149,9 @@ td.month-cell{
   font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;position:relative;
 }
 
-/* Modificación de mapa de calor (Gantt style) para celdas con valores */
-td.month-cell.pago-cell.has-value { background: var(--blue) !important; color: #ffffff !important; border-color: rgba(0,0,0,0.1); }
-td.month-cell.pago-cell.has-value .cell-display:hover { background: rgba(0,0,0,0.15); border-color: transparent; }
-
-td.month-cell.informe-cell.has-value { background: var(--green) !important; color: #ffffff !important; border-color: rgba(0,0,0,0.1); }
-td.month-cell.informe-cell.has-value .cell-display:hover { background: rgba(0,0,0,0.15); border-color: transparent; }
+/* NUEVO: Modificación de mapa de calor con el color Verde Oscuro solicitado */
+td.month-cell.has-value { background: #009688 !important; color: #ffffff !important; border-color: rgba(0,0,0,0.1); }
+td.month-cell.has-value .cell-display:hover { background: rgba(0,0,0,0.15); border-color: transparent; }
 
 .cell-edit{width:100%;border:none;background:transparent;color:inherit;font:inherit;outline:none;padding:0;}
 .cell-edit:focus{background:var(--surface);box-shadow: 0 0 0 2px var(--accent-glow); border-radius:4px;padding:2px 4px}
@@ -358,6 +355,13 @@ function generateUUID() {
   return 'row_' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
 }
 
+// NUEVO: Identifica unificadamente si la columna es de meses
+function isMonthCol(col) {
+    if (!col) return false;
+    let c = String(col).toLowerCase().trim();
+    return c.includes('pago') || c.includes('informe') || ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'].includes(c);
+}
+
 async function fetchAppScript(payload) {
   try {
     const response = await fetch(SCRIPT_URL, {
@@ -484,12 +488,14 @@ function getFiltered(){
   let s = searchEl ? searchEl.value.toLowerCase() : '';
   
   return data.filter(r => {
+    // 1. Filtros superiores dinámicos
     for(let sel of topFilters) {
         let col = sel.dataset.col;
         let val = sel.value;
         if(val && String(r[col]) !== val) return false;
     }
     
+    // 2. Filtro global de búsqueda
     if (s) {
         let match = false;
         for(let key of headersOriginales) {
@@ -500,12 +506,32 @@ function getFiltered(){
         if(!match) return false;
     }
     
+    // 3. Filtros del popup por columna
     for(let key in colFilters){
       if(colFilters[key] && colFilters[key].length > 0){
         let val = String(r[key]||'').trim();
         if(!colFilters[key].includes(val)) return false;
       }
     }
+
+    // NUEVO 4: Filtro de filas por Mes. Si se selecciona "Noviembre", solo trae las filas que tengan valor en "Noviembre".
+    if (viewMode !== 'todos') {
+        let monthHasValue = false;
+        for (let key of headersOriginales) {
+            if (isMonthCol(key)) {
+                let keyLower = key.toLowerCase();
+                if (keyLower.includes(viewMode) || keyLower.includes(viewMode.substring(0,3))) {
+                    let v = r[key];
+                    if (v !== '' && v !== null && v !== undefined) {
+                        monthHasValue = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!monthHasValue) return false;
+    }
+
     return true;
   });
 }
@@ -526,7 +552,7 @@ function render(){
   
   let h = '<tr>';
   visHeaders.forEach(col => {
-    let isMonthColumn = col.toLowerCase().includes('pago') || col.toLowerCase().includes('informe');
+    let isMonthColumn = isMonthCol(col);
     
     if (isMonthColumn && viewMode !== 'todos') {
         let colLower = col.toLowerCase();
@@ -535,7 +561,7 @@ function render(){
     }
 
     let style = isMonthColumn ? '' : getColStyle(col);
-    let extraClass = isMonthColumn ? ' month-col' + (col.toLowerCase().includes('informe') ? ' info-header' : '') : '';
+    let extraClass = isMonthColumn ? ' month-col' : '';
     
     let fBtn = isMonthColumn ? '' : `<button class="filter-btn ${colFilters[col]?'active':''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
     h += `<th style="${style}" class="${extraClass}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
@@ -553,22 +579,16 @@ function render(){
     
     html += `<tr class="${cls}" style="animation-delay:${idx*0.015}s">`;
     
-    let sumPagos = 0, sumInformes = 0;
-    let hasPagos = false, hasInformes = false;
+    let sumTotal = 0;
+    let hasMonthValues = false;
 
     visHeaders.forEach(col => {
-        let isPago = col.toLowerCase().includes('pago');
-        let isInforme = col.toLowerCase().includes('informe');
-        let isMonthColumn = isPago || isInforme;
+        let isMonthColumn = isMonthCol(col);
 
-        // Validaciones para la columna Total
-        if (isPago && r[col] !== '' && r[col] !== null && r[col] !== undefined) {
-            hasPagos = true;
-            sumPagos += (parseFloat(r[col]) || 0);
-        }
-        if (isInforme && r[col] !== '' && r[col] !== null && r[col] !== undefined) {
-            hasInformes = true;
-            sumInformes += (parseFloat(r[col]) || 0);
+        // Validaciones para la columna Total general
+        if (isMonthColumn && r[col] !== '' && r[col] !== null && r[col] !== undefined) {
+            hasMonthValues = true;
+            sumTotal += (parseFloat(r[col]) || 0);
         }
 
         if (isMonthColumn && viewMode !== 'todos') {
@@ -581,15 +601,10 @@ function render(){
             let v = r[col];
             let hasVal = v !== '' && v !== null && v !== undefined;
             
-            // Visualmente mostramos el porcentaje redondeado si es numero
             let disp = hasVal ? (typeof v==='number' ? Math.round(v*100)+'%' : escapeHtml(v)) : '';
-            let cls2 = 'month-cell ' + (isPago ? 'pago-cell' : 'informe-cell') + (hasVal ? ' has-value' : '');
+            let cls2 = 'month-cell' + (hasVal ? ' has-value' : '');
             
-            let canEditCell = can;
-            if(isPago && currentRole !== 'Equipo de Contratación' && currentRole !== 'Unidad Administrativa' && currentRole !== 'Invitado') canEditCell = false;
-
-            if(canEditCell && currentRole !== 'Invitado') {
-                // Al editar, le quitamos el símbolo de % y se lo mostramos como número entero (15 para 15%)
+            if(can && currentRole !== 'Invitado') {
                 let inputVal = hasVal ? (typeof v==='number' ? Math.round(v*100) : escapeAttr(v)) : '';
                 let displayDiv = `<div class="cell-display" onclick="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.focus(); this.nextElementSibling.select();">${disp || '&nbsp;'}</div>`;
                 let editInput = `<input type="text" class="cell-edit month-input" style="display:none;" data-id="${escapeAttr(r.ID)}" data-col="${escapeAttr(col)}" value="${inputVal}">`;
@@ -606,19 +621,13 @@ function render(){
         }
     });
 
-    // Celda de Total %
+    // Celda de Total % General
     let totalHtml = '';
-    if (hasPagos) {
-        let pPct = Math.round(sumPagos * 100);
-        let pColor = pPct === 100 ? 'var(--green)' : (pPct > 100 ? 'var(--red)' : 'var(--amber)');
-        let pIcon = pPct === 100 ? '✅' : (pPct > 100 ? '❌' : '⚠️');
-        totalHtml += `<div style="font-size:10.5px; color:${pColor}; font-weight:700; white-space:nowrap;" title="Total Pagos">P: ${pPct}% ${pIcon}</div>`;
-    }
-    if (hasInformes) {
-        let iPct = Math.round(sumInformes * 100);
-        let iColor = iPct === 100 ? 'var(--green)' : (iPct > 100 ? 'var(--red)' : 'var(--amber)');
-        let iIcon = iPct === 100 ? '✅' : (iPct > 100 ? '❌' : '⚠️');
-        totalHtml += `<div style="font-size:10.5px; color:${iColor}; font-weight:700; white-space:nowrap; margin-top:3px;" title="Total Informes">I: ${iPct}% ${iIcon}</div>`;
+    if (hasMonthValues) {
+        let pct = Math.round(sumTotal * 100);
+        let color = pct === 100 ? 'var(--green)' : (pct > 100 ? 'var(--red)' : 'var(--amber)');
+        let icon = pct === 100 ? '✅' : (pct > 100 ? '❌' : '⚠️');
+        totalHtml += `<div style="font-size:11px; color:${color}; font-weight:700; white-space:nowrap;" title="Total Porcentaje">${pct}% ${icon}</div>`;
     }
     html += `<td id="total_${escapeAttr(r.ID)}" style="vertical-align:middle; text-align:center; background: var(--surface2); border-left: 2px solid var(--border);">${totalHtml}</td>`;
 
@@ -688,7 +697,6 @@ function startEdit(el, id, col){
 function attachCellListeners() {
     document.querySelectorAll('input.cell-edit').forEach(inp => {
         inp.addEventListener('blur', function() { 
-            // Si es un input de mes ocultarlo para que se vea el displayDiv de nuevo
             if (this.classList.contains('month-input')) {
                 this.style.display = 'none';
                 if (this.previousElementSibling) this.previousElementSibling.style.display = 'flex';
@@ -703,28 +711,23 @@ function updateLocalTotal(id) {
     let rObj = data.find(x => x.ID === id);
     if(!rObj) return;
     
-    let sumP = 0, sumI = 0;
-    let hasP = false, hasI = false;
+    let sumTotal = 0;
+    let hasMonthValues = false;
     for(let k in rObj) {
-        let kLower = k.toLowerCase();
-        if(kLower.includes('pago') && rObj[k] !== '' && rObj[k] !== null && rObj[k] !== undefined) { hasP=true; sumP+=(parseFloat(rObj[k])||0); }
-        if(kLower.includes('informe') && rObj[k] !== '' && rObj[k] !== null && rObj[k] !== undefined) { hasI=true; sumI+=(parseFloat(rObj[k])||0); }
+        if(isMonthCol(k) && rObj[k] !== '' && rObj[k] !== null && rObj[k] !== undefined) { 
+            hasMonthValues = true; 
+            sumTotal += (parseFloat(rObj[k]) || 0); 
+        }
     }
     
     let totalTd = document.getElementById('total_' + id);
     if (totalTd) {
         let totalHtml = '';
-        if (hasP) {
-            let pPct = Math.round(sumP * 100);
-            let pColor = pPct === 100 ? 'var(--green)' : (pPct > 100 ? 'var(--red)' : 'var(--amber)');
-            let pIcon = pPct === 100 ? '✅' : (pPct > 100 ? '❌' : '⚠️');
-            totalHtml += `<div style="font-size:10.5px; color:${pColor}; font-weight:700; white-space:nowrap;" title="Total Pagos">P: ${pPct}% ${pIcon}</div>`;
-        }
-        if (hasI) {
-            let iPct = Math.round(sumI * 100);
-            let iColor = iPct === 100 ? 'var(--green)' : (iPct > 100 ? 'var(--red)' : 'var(--amber)');
-            let iIcon = iPct === 100 ? '✅' : (iPct > 100 ? '❌' : '⚠️');
-            totalHtml += `<div style="font-size:10.5px; color:${iColor}; font-weight:700; white-space:nowrap; margin-top:3px;" title="Total Informes">I: ${iPct}% ${iIcon}</div>`;
+        if (hasMonthValues) {
+            let pct = Math.round(sumTotal * 100);
+            let color = pct === 100 ? 'var(--green)' : (pct > 100 ? 'var(--red)' : 'var(--amber)');
+            let icon = pct === 100 ? '✅' : (pct > 100 ? '❌' : '⚠️');
+            totalHtml += `<div style="font-size:11px; color:${color}; font-weight:700; white-space:nowrap;" title="Total Porcentaje">${pct}% ${icon}</div>`;
         }
         totalTd.innerHTML = totalHtml;
     }
@@ -737,18 +740,30 @@ function onCellChange(el){
   let oldVal = r[col];
   let v = el.value;
   
-  let isMonth = col.toLowerCase().includes('pago') || col.toLowerCase().includes('informe');
+  let isMonth = isMonthCol(col);
   
   if(isMonth){
-      // Convertir inteligentemente entradas tipo "15" o "15%" a 0.15 para la base de datos
       let origV = String(v).trim();
-      let isPct = origV.includes('%');
-      v = parseFloat(origV.replace('%', ''));
-      if(isNaN(v)) {
+      if (origV === '') {
           v = '';
       } else {
-          if (isPct) v = v / 100;
-          else if (v > 1 || origV === '1') v = v / 100; 
+          let isPct = origV.includes('%');
+          let hasDecimal = origV.includes('.') || origV.includes(',');
+          // Extrae solo números, puntos y comas
+          let numStr = origV.replace(/[^0-9.,-]/g, '').replace(',', '.');
+          v = parseFloat(numStr);
+          if(isNaN(v)) {
+              v = '';
+          } else {
+              // Lógica de porcentaje: 
+              // Si puso % -> lo dividimos
+              // Si NO puso decimales -> asumimos porcentaje entero (ej. 45 -> 45%)
+              if (isPct) {
+                  v = v / 100;
+              } else if (!hasDecimal) {
+                  v = v / 100; 
+              }
+          }
       }
       el.value = v !== '' ? Math.round(v * 100) : '';
   }
@@ -758,7 +773,6 @@ function onCellChange(el){
     if(historyStack.length>50) historyStack.shift();
     r[col] = v;
     
-    // UI Optimista (Actualización local de dom para no interrumpir el flujo del usuario)
     if(isMonth) {
         let disp = v !== '' ? Math.round(v * 100) + '%' : '&nbsp;';
         if(el.previousElementSibling) el.previousElementSibling.innerHTML = disp;
@@ -766,7 +780,7 @@ function onCellChange(el){
         let td = el.closest('td');
         if(v !== '') td.classList.add('has-value'); else td.classList.remove('has-value');
         
-        updateLocalTotal(id); // Recalcula la columna total automáticamente
+        updateLocalTotal(id);
     } else {
         let newDiv = document.createElement('div');
         newDiv.className = 'cell-display';
@@ -801,7 +815,7 @@ function revertCellVisualError(id, col, oldVal, failedEl, errMsg) {
     let r = data.find(x=>x.ID===id);
     if(r) r[col] = oldVal; 
     
-    let isMonth = col.toLowerCase().includes('pago') || col.toLowerCase().includes('informe');
+    let isMonth = isMonthCol(col);
     if (isMonth) {
         updateLocalTotal(id);
         let disp = oldVal !== '' && oldVal !== null ? Math.round(oldVal * 100) + '%' : '&nbsp;';
