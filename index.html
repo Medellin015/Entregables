@@ -764,19 +764,26 @@ function eliminarFila(id) {
   if(confirm("¿Estás seguro de que deseas eliminar esta fila por completo?")) {
     let rIdx = data.indexOf(r);
     let deletedRow = data.splice(rIdx, 1)[0];
+    
+    // Añadir al historial para permitir Ctrl+Z
+    historyStack.push({ type: 'delete', row: deletedRow, index: rIdx });
+    if(historyStack.length > 50) historyStack.shift();
+
     render();
     toast('⏳ Eliminando fila...');
 
     fetchAppScript({ action: 'deleteRowRecord', id: id })
       .then(res => {
-          if(res.success) toast('✅ Fila eliminada de la base de datos');
+          if(res.success) toast('✅ Fila eliminada (Ctrl+Z para deshacer)');
           else {
               data.splice(rIdx, 0, deletedRow); // Revertir visualmente
+              historyStack.pop(); // Quitar del historial porque falló
               render();
               toast('❌ Error al eliminar: ' + (res.error || ''));
           }
       }).catch(e => {
           data.splice(rIdx, 0, deletedRow); // Revertir visualmente
+          historyStack.pop(); // Quitar del historial porque falló
           render();
           toast('❌ Error de conexión al eliminar');
       });
@@ -847,12 +854,28 @@ document.addEventListener('keydown', function(e){
     e.preventDefault();
     if(historyStack.length===0){toast('No hay cambios');return}
     let last = historyStack.pop();
-    let r = data.find(x=>x.ID===last.id);
-    if(r){
-        r[last.col]=last.oldVal;
+    
+    if (last.type === 'delete') {
+        // Restaurar fila eliminada
+        data.splice(last.index, 0, last.row);
         render();
-        toast('⏳ Deshaciendo...');
-        fetchAppScript({ action: 'updateCell', id: last.id, colName: last.col, value: last.oldVal });
+        toast('⏳ Restaurando fila...');
+        
+        // Reinsertar en Google Sheets usando el backend existente
+        fetchAppScript({ action: 'addRowRecord', rowData: last.row })
+          .then(res => {
+              if(res.success) toast('✅ Fila restaurada');
+              else toast('❌ Error al restaurar fila en la base de datos');
+          }).catch(err => toast('❌ Error de conexión al restaurar'));
+    } else {
+        // Restaurar cambio de celda normal
+        let r = data.find(x=>x.ID===last.id);
+        if(r){
+            r[last.col]=last.oldVal;
+            render();
+            toast('⏳ Deshaciendo...');
+            fetchAppScript({ action: 'updateCell', id: last.id, colName: last.col, value: last.oldVal });
+        }
     }
   }
 });
