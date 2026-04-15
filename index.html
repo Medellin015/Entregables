@@ -148,13 +148,23 @@ td.month-cell{
   text-align:center;padding:6px 2px;min-width:45px;max-width:55px;
   font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;position:relative;
 }
-td.month-cell.has-value{color:var(--text);font-weight:600}
-td.month-cell.pago-cell.has-value{background:var(--blue-bg);color:var(--blue)}
-td.month-cell.informe-cell.has-value{background:var(--green-bg);color:var(--green)}
+
+/* Modificación de mapa de calor (Gantt style) para celdas con valores */
+td.month-cell.pago-cell.has-value { background: var(--blue) !important; color: #ffffff !important; border-color: rgba(0,0,0,0.1); }
+td.month-cell.pago-cell.has-value .cell-display:hover { background: rgba(0,0,0,0.15); border-color: transparent; }
+
+td.month-cell.informe-cell.has-value { background: var(--green) !important; color: #ffffff !important; border-color: rgba(0,0,0,0.1); }
+td.month-cell.informe-cell.has-value .cell-display:hover { background: rgba(0,0,0,0.15); border-color: transparent; }
 
 .cell-edit{width:100%;border:none;background:transparent;color:inherit;font:inherit;outline:none;padding:0;}
 .cell-edit:focus{background:var(--surface);box-shadow: 0 0 0 2px var(--accent-glow); border-radius:4px;padding:2px 4px}
 select.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text); max-width: 100%;}
+
+/* Inputs de mes: forzar fondo blanco para legibilidad sobre el color */
+input.month-input {
+  background: #ffffff !important; color: var(--text) !important; border: 2px solid var(--accent) !important;
+  border-radius: 4px; padding: 4px !important; height: 100%; text-align: center; font-weight: 600; width: 100%;
+}
 
 .cell-display{
   cursor:pointer;
@@ -164,7 +174,9 @@ select.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(-
   border:1px solid transparent;
   min-height:100%;
   height:calc(100% + 18px);
-  display:block;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   transition:all .15s; 
   white-space: pre-wrap; 
   word-break: break-word;
@@ -182,6 +194,8 @@ select.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(-
 .modal input[type=password]:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
 .error-msg{color:var(--red);font-size:12px;display:none;margin-top:6px}
+.error-flash { animation: errorPulse 1s; }
+@keyframes errorPulse { 0% { background-color: var(--red-bg); } 100% { background-color: transparent; } }
 
 #toast{
   display:none;position:fixed;bottom:20px;right:20px;
@@ -308,7 +322,6 @@ th:hover .filter-btn{opacity:1}
 <div class="modal">
 <h3>🔐 Autenticación</h3>
 <p id="passRoleName"></p>
-<!-- FIX: autocomplete="new-password" evita que el navegador confunda este modal con un login de otra parte de la web -->
 <input type="password" id="passInput" placeholder="Contraseña" autocomplete="new-password" onkeydown="if(event.key==='Enter')verifyPass()">
 <div class="error-msg" id="passError">Contraseña incorrecta</div>
 <div class="modal-actions">
@@ -515,10 +528,9 @@ function render(){
   visHeaders.forEach(col => {
     let isMonthColumn = col.toLowerCase().includes('pago') || col.toLowerCase().includes('informe');
     
-    // Lógica para filtrar columnas por mes
     if (isMonthColumn && viewMode !== 'todos') {
         let colLower = col.toLowerCase();
-        let shouldShow = colLower.includes(viewMode) || colLower.includes(viewMode.substring(0,3)); // Busca 'julio' o 'jul'
+        let shouldShow = colLower.includes(viewMode) || colLower.includes(viewMode.substring(0,3));
         if(!shouldShow) return; 
     }
 
@@ -529,6 +541,8 @@ function render(){
     h += `<th style="${style}" class="${extraClass}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
   });
   
+  // Agregar columna Total %
+  h += '<th style="width: 70px; text-align: center; border-left: 2px solid var(--accent);">Total %</th>';
   h += '<th style="width: 50px; text-align: center;">⚙️</th></tr>';
   thead.innerHTML = h;
   
@@ -539,10 +553,23 @@ function render(){
     
     html += `<tr class="${cls}" style="animation-delay:${idx*0.015}s">`;
     
+    let sumPagos = 0, sumInformes = 0;
+    let hasPagos = false, hasInformes = false;
+
     visHeaders.forEach(col => {
         let isPago = col.toLowerCase().includes('pago');
         let isInforme = col.toLowerCase().includes('informe');
         let isMonthColumn = isPago || isInforme;
+
+        // Validaciones para la columna Total
+        if (isPago && r[col] !== '' && r[col] !== null && r[col] !== undefined) {
+            hasPagos = true;
+            sumPagos += (parseFloat(r[col]) || 0);
+        }
+        if (isInforme && r[col] !== '' && r[col] !== null && r[col] !== undefined) {
+            hasInformes = true;
+            sumInformes += (parseFloat(r[col]) || 0);
+        }
 
         if (isMonthColumn && viewMode !== 'todos') {
             let colLower = col.toLowerCase();
@@ -553,16 +580,22 @@ function render(){
         if (isMonthColumn) {
             let v = r[col];
             let hasVal = v !== '' && v !== null && v !== undefined;
-            let disp = hasVal ? (typeof v==='number' && v<=1 ? (v*100).toFixed(0)+'%' : escapeHtml(v)) : '';
+            
+            // Visualmente mostramos el porcentaje redondeado si es numero
+            let disp = hasVal ? (typeof v==='number' ? Math.round(v*100)+'%' : escapeHtml(v)) : '';
             let cls2 = 'month-cell ' + (isPago ? 'pago-cell' : 'informe-cell') + (hasVal ? ' has-value' : '');
             
             let canEditCell = can;
             if(isPago && currentRole !== 'Equipo de Contratación' && currentRole !== 'Unidad Administrativa' && currentRole !== 'Invitado') canEditCell = false;
 
             if(canEditCell && currentRole !== 'Invitado') {
-                html += `<td class="${cls2}"><input class="cell-edit" style="width:40px;text-align:center" data-id="${escapeAttr(r.ID)}" data-col="${escapeAttr(col)}" value="${escapeAttr(hasVal?v:'')}"></td>`;
+                // Al editar, le quitamos el símbolo de % y se lo mostramos como número entero (15 para 15%)
+                let inputVal = hasVal ? (typeof v==='number' ? Math.round(v*100) : escapeAttr(v)) : '';
+                let displayDiv = `<div class="cell-display" onclick="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.focus(); this.nextElementSibling.select();">${disp || '&nbsp;'}</div>`;
+                let editInput = `<input type="text" class="cell-edit month-input" style="display:none;" data-id="${escapeAttr(r.ID)}" data-col="${escapeAttr(col)}" value="${inputVal}">`;
+                html += `<td class="${cls2}">${displayDiv}${editInput}</td>`;
             } else { 
-                html += `<td class="${cls2}">${disp}</td>`; 
+                html += `<td class="${cls2}"><div class="cell-display" style="cursor:default;">${disp || '&nbsp;'}</div></td>`; 
             }
         } else {
             if (col === 'N' || col === 'N°') {
@@ -573,6 +606,23 @@ function render(){
         }
     });
 
+    // Celda de Total %
+    let totalHtml = '';
+    if (hasPagos) {
+        let pPct = Math.round(sumPagos * 100);
+        let pColor = pPct === 100 ? 'var(--green)' : (pPct > 100 ? 'var(--red)' : 'var(--amber)');
+        let pIcon = pPct === 100 ? '✅' : (pPct > 100 ? '❌' : '⚠️');
+        totalHtml += `<div style="font-size:10.5px; color:${pColor}; font-weight:700; white-space:nowrap;" title="Total Pagos">P: ${pPct}% ${pIcon}</div>`;
+    }
+    if (hasInformes) {
+        let iPct = Math.round(sumInformes * 100);
+        let iColor = iPct === 100 ? 'var(--green)' : (iPct > 100 ? 'var(--red)' : 'var(--amber)');
+        let iIcon = iPct === 100 ? '✅' : (iPct > 100 ? '❌' : '⚠️');
+        totalHtml += `<div style="font-size:10.5px; color:${iColor}; font-weight:700; white-space:nowrap; margin-top:3px;" title="Total Informes">I: ${iPct}% ${iIcon}</div>`;
+    }
+    html += `<td id="total_${escapeAttr(r.ID)}" style="vertical-align:middle; text-align:center; background: var(--surface2); border-left: 2px solid var(--border);">${totalHtml}</td>`;
+
+    // Celda de acciones (botón eliminar)
     let delBtn = (can && currentRole !== 'Invitado') ? `<button class="btn-delete" onclick="eliminarFila('${escapeAttr(r.ID)}')">❌</button>` : '';
     html += `<td style="text-align:center; vertical-align:middle;">${delBtn}</td>`;
     
@@ -616,7 +666,6 @@ function startEdit(el, id, col){
       inp.type = 'text'; 
       inp.className = 'cell-edit'; 
       inp.value = v;
-      // FIX: Evita que navegadores agresivos como Chrome asuman que este input enlazado a la tabla es un usuario/contraseña
       inp.setAttribute('autocomplete', 'off');
       inp.setAttribute('name', 'campo_dinamico_' + Math.random().toString(36).substring(7));
   }
@@ -638,9 +687,47 @@ function startEdit(el, id, col){
 
 function attachCellListeners() {
     document.querySelectorAll('input.cell-edit').forEach(inp => {
-        inp.addEventListener('blur', function() { onCellChange(this); });
+        inp.addEventListener('blur', function() { 
+            // Si es un input de mes ocultarlo para que se vea el displayDiv de nuevo
+            if (this.classList.contains('month-input')) {
+                this.style.display = 'none';
+                if (this.previousElementSibling) this.previousElementSibling.style.display = 'flex';
+            }
+            onCellChange(this); 
+        });
         inp.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); this.blur(); } });
     });
+}
+
+function updateLocalTotal(id) {
+    let rObj = data.find(x => x.ID === id);
+    if(!rObj) return;
+    
+    let sumP = 0, sumI = 0;
+    let hasP = false, hasI = false;
+    for(let k in rObj) {
+        let kLower = k.toLowerCase();
+        if(kLower.includes('pago') && rObj[k] !== '' && rObj[k] !== null && rObj[k] !== undefined) { hasP=true; sumP+=(parseFloat(rObj[k])||0); }
+        if(kLower.includes('informe') && rObj[k] !== '' && rObj[k] !== null && rObj[k] !== undefined) { hasI=true; sumI+=(parseFloat(rObj[k])||0); }
+    }
+    
+    let totalTd = document.getElementById('total_' + id);
+    if (totalTd) {
+        let totalHtml = '';
+        if (hasP) {
+            let pPct = Math.round(sumP * 100);
+            let pColor = pPct === 100 ? 'var(--green)' : (pPct > 100 ? 'var(--red)' : 'var(--amber)');
+            let pIcon = pPct === 100 ? '✅' : (pPct > 100 ? '❌' : '⚠️');
+            totalHtml += `<div style="font-size:10.5px; color:${pColor}; font-weight:700; white-space:nowrap;" title="Total Pagos">P: ${pPct}% ${pIcon}</div>`;
+        }
+        if (hasI) {
+            let iPct = Math.round(sumI * 100);
+            let iColor = iPct === 100 ? 'var(--green)' : (iPct > 100 ? 'var(--red)' : 'var(--amber)');
+            let iIcon = iPct === 100 ? '✅' : (iPct > 100 ? '❌' : '⚠️');
+            totalHtml += `<div style="font-size:10.5px; color:${iColor}; font-weight:700; white-space:nowrap; margin-top:3px;" title="Total Informes">I: ${iPct}% ${iIcon}</div>`;
+        }
+        totalTd.innerHTML = totalHtml;
+    }
 }
 
 function onCellChange(el){
@@ -653,8 +740,17 @@ function onCellChange(el){
   let isMonth = col.toLowerCase().includes('pago') || col.toLowerCase().includes('informe');
   
   if(isMonth){
-    if(v==='') v = ''; else { v = parseFloat(v); if(isNaN(v)) v = ''; }
-    el.value = v;
+      // Convertir inteligentemente entradas tipo "15" o "15%" a 0.15 para la base de datos
+      let origV = String(v).trim();
+      let isPct = origV.includes('%');
+      v = parseFloat(origV.replace('%', ''));
+      if(isNaN(v)) {
+          v = '';
+      } else {
+          if (isPct) v = v / 100;
+          else if (v > 1 || origV === '1') v = v / 100; 
+      }
+      el.value = v !== '' ? Math.round(v * 100) : '';
   }
   
   if(oldVal !== v){
@@ -662,8 +758,16 @@ function onCellChange(el){
     if(historyStack.length>50) historyStack.shift();
     r[col] = v;
     
-    // UI Optimista
-    if(!isMonth){
+    // UI Optimista (Actualización local de dom para no interrumpir el flujo del usuario)
+    if(isMonth) {
+        let disp = v !== '' ? Math.round(v * 100) + '%' : '&nbsp;';
+        if(el.previousElementSibling) el.previousElementSibling.innerHTML = disp;
+        
+        let td = el.closest('td');
+        if(v !== '') td.classList.add('has-value'); else td.classList.remove('has-value');
+        
+        updateLocalTotal(id); // Recalcula la columna total automáticamente
+    } else {
         let newDiv = document.createElement('div');
         newDiv.className = 'cell-display';
         newDiv.onclick = function() { startEdit(this, id, col); };
@@ -690,6 +794,35 @@ function onCellChange(el){
           el.replaceWith(newDiv);
       }
   }
+}
+
+function revertCellVisualError(id, col, oldVal, failedEl, errMsg) {
+    toast(errMsg);
+    let r = data.find(x=>x.ID===id);
+    if(r) r[col] = oldVal; 
+    
+    let isMonth = col.toLowerCase().includes('pago') || col.toLowerCase().includes('informe');
+    if (isMonth) {
+        updateLocalTotal(id);
+        let disp = oldVal !== '' && oldVal !== null ? Math.round(oldVal * 100) + '%' : '&nbsp;';
+        if (failedEl.previousElementSibling) failedEl.previousElementSibling.innerHTML = disp;
+        failedEl.value = oldVal !== '' && oldVal !== null ? Math.round(oldVal * 100) : '';
+        
+        let td = failedEl.closest('td');
+        if (oldVal !== '' && oldVal !== null) td.classList.add('has-value');
+        else td.classList.remove('has-value');
+    } else {
+        render(); 
+    }
+    
+    setTimeout(() => {
+        let td = document.querySelector(`td .cell-display[onclick*="${id}"]`)?.parentElement 
+                 || document.querySelector(`input[data-id="${id}"][data-col="${col}"]`)?.parentElement;
+        if(td) {
+            td.classList.add('error-flash');
+            setTimeout(()=>td.classList.remove('error-flash'), 1000);
+        }
+    }, 50);
 }
 
 function addRow(){
