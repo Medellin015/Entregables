@@ -557,6 +557,40 @@ function getFiltered(){
       }
     }
 
+    if (viewMode !== 'todos') {
+        let monthHasValue = false;
+        let viewPrefix = viewMode.substring(0,3);
+        let monthIndex = -1;
+        switch(viewMode) {
+            case 'julio': monthIndex = 5; break;
+            case 'agosto': monthIndex = 6; break;
+            case 'septiembre': monthIndex = 7; break;
+            case 'octubre': monthIndex = 8; break;
+            case 'noviembre': monthIndex = 9; break;
+            case 'diciembre': monthIndex = 10; break;
+        }
+
+        for (let key of headersOriginales) {
+            if (isMonthCol(key)) {
+                let keyLower = key.toLowerCase();
+                let isTargetMonth = keyLower.includes(viewMode) || keyLower.includes(viewPrefix);
+                
+                if (monthIndex !== -1 && (key === `pago_${monthIndex}` || key === `informe_${monthIndex}`)) {
+                    isTargetMonth = true;
+                }
+                
+                if (isTargetMonth) {
+                    let v = r[key];
+                    if (v !== '' && v !== null && v !== undefined) {
+                        monthHasValue = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!monthHasValue) return false; 
+    }
+
     return true;
   });
 }
