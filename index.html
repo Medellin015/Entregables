@@ -393,7 +393,6 @@ let isSaving = false;
 let saveTimeoutId = null;
 let hasUnsavedChanges = false;
 
-// NUEVO: Funciones de almacenamiento local para evitar pérdida de datos si falla el internet
 function saveLocalDeltas() {
     localStorage.setItem('cronograma_deltas', JSON.stringify(deltas));
 }
@@ -441,7 +440,6 @@ window.onload = function() {
           headersOriginales = Object.keys(data[0]); 
       }
       
-      // Aplicar cambios pendientes que no se alcanzaron a guardar en la sesión anterior
       loadLocalDeltas();
       applyDeltasToData();
       
@@ -467,10 +465,10 @@ function initTopFilters(){
   
   if (headersOriginales.length === 0) return;
   
+  // MODIFICADO: Se quitó 'RESPONSABLE' del filtro superior
   let targetCols = headersOriginales.filter(h => 
      h.toUpperCase().includes('ENLACE') || 
-     h.toUpperCase().includes('PROYECTO') || 
-     h.toUpperCase().includes('RESPONSABLE')
+     h.toUpperCase().includes('PROYECTO')
   );
 
   targetCols.forEach(col => {
@@ -494,10 +492,11 @@ function setViewMode(m){
 }
 
 function checkPerm(sub){
-  if(currentRole==='Equipo de Contratación') return true;
-  if(currentRole==='Invitado') return false;
-  if(!sub) return true; 
-  return sub.trim().toUpperCase() === currentRole.trim().toUpperCase();
+  if(currentRole === 'Equipo de Contratación') return true;
+  if(currentRole === 'Invitado') return false;
+  // MODIFICADO: Si la fila no tiene subsecretaría asignada, solo Equipo de Contratación la edita.
+  if(!sub || String(sub).trim() === '') return false; 
+  return String(sub).trim().toUpperCase() === String(currentRole).trim().toUpperCase();
 }
 
 function getColStyle(col) {
@@ -507,7 +506,7 @@ function getColStyle(col) {
     if (c.includes('PROYECTO') || c.includes('ACTIVIDAD')) return 'min-width:200px;';
     if (c.includes('ENTREGABLE')) return 'min-width:280px;';
     if (c.includes('TIPO')) return 'min-width:120px;';
-    if (c.includes('CORREO') || c.includes('RESPONSABLE')) return 'min-width:160px;';
+    if (c.includes('CORREO') || c.includes('RESPONSABLE') || c.includes('SUBSECRETAR')) return 'min-width:160px;';
     return 'min-width:140px;';
 }
 
@@ -531,7 +530,7 @@ function getFiltered(){
     if (s) {
         let match = false;
         for(let key of headersOriginales) {
-            if (key !== 'ID' && key !== 'SUBSECRETARIA' && key !== 'SUBSECRETARÍA' && String(r[key]||'').toLowerCase().includes(s)) {
+            if (key !== 'ID' && String(r[key]||'').toLowerCase().includes(s)) {
                 match = true; break;
             }
         }
@@ -544,9 +543,6 @@ function getFiltered(){
         if(!colFilters[key].includes(val)) return false;
       }
     }
-
-    // NUEVO: Se eliminó el filtro que ocultaba filas vacías cuando se selecciona un mes.
-    // Ahora puedes llenar tranquilamente un mes aunque la fila estuviera en blanco originalmente.
 
     return true;
   });
@@ -564,9 +560,9 @@ function render(){
   }
 
   let filtered = getFiltered();
-  let visHeaders = headersOriginales.filter(h => h !== 'ID' && h !== 'SUBSECRETARIA' && h !== 'SUBSECRETARÍA');
+  // MODIFICADO: Permite que SUBSECRETARÍA y SUBSECRETARIA se visualicen.
+  let visHeaders = headersOriginales.filter(h => h !== 'ID');
   
-  // Identificar qué columnas son visibles (para poder insertar la de Total al lado derecho de los meses)
   let visibleCols = visHeaders.filter(col => {
       let isMonthColumn = isMonthCol(col);
       if (isMonthColumn && viewMode !== 'todos') {
@@ -591,6 +587,7 @@ function render(){
   let lastVisibleMonthIdx = -1;
   visibleCols.forEach((c, i) => { if(isMonthCol(c)) lastVisibleMonthIdx = i; });
   
+  // MODIFICADO: Remover position: sticky de las últimas columnas
   let h = '<tr>';
   visibleCols.forEach((col, i) => {
     let isMonthColumn = isMonthCol(col);
@@ -600,13 +597,12 @@ function render(){
     let fBtn = isMonthColumn ? '' : `<button class="filter-btn ${colFilters[col]?'active':''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
     h += `<th style="${style}" class="${extraClass}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
     
-    // Insertar la columna TOTAL % justo después del último mes visible
     if (i === lastVisibleMonthIdx) {
-        h += '<th style="width: 75px; min-width: 75px; text-align: center; border-left: 2px solid var(--accent); background: var(--surface2);">Total %</th>';
+        h += '<th style="width: 70px; text-align: center; border-left: 2px solid var(--accent); background: var(--surface2);">Total %</th>';
     }
   });
   
-  h += '<th style="width: 50px; min-width: 50px; text-align: center; position: sticky; right: 0; background: var(--surface2); z-index: 60;">⚙️</th></tr>';
+  h += '<th style="width: 50px; text-align: center; background: var(--surface2);">⚙️</th></tr>';
   thead.innerHTML = h;
   
   let html = '';
@@ -621,7 +617,6 @@ function render(){
     let sumTotal = 0;
     let hasMonthValues = false;
 
-    // Calculamos el Total general usando TODAS las columnas de la fila
     visHeaders.forEach(col => {
         if (isMonthCol(col) && r[col] !== '' && r[col] !== null && r[col] !== undefined) {
             hasMonthValues = true;
@@ -643,7 +638,6 @@ function render(){
             if(can && currentRole !== 'Invitado') {
                 let inputVal = hasVal ? (!isNaN(parseFloat(v)) ? parseFloat((parseFloat(v)*100).toFixed(2)) : escapeAttr(v)) : '';
                 let displayDiv = `<div class="cell-display" onclick="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.focus(); this.nextElementSibling.select();">${disp || '&nbsp;'}</div>`;
-                // NUEVO: Placeholder claro "Ej: 45"
                 let editInput = `<input type="text" class="cell-edit month-input" placeholder="Ej: 45" style="display:none;" data-id="${escapeAttr(r.ID)}" data-col="${escapeAttr(col)}" value="${inputVal}">`;
                 html += `<td class="${cls2}">${displayDiv}${editInput}</td>`;
             } else { 
@@ -657,7 +651,6 @@ function render(){
             }
         }
 
-        // Insertar el contenido de la columna TOTAL %
         if (i === lastVisibleMonthIdx) {
             let totalHtml = '';
             if (hasMonthValues) {
@@ -671,7 +664,7 @@ function render(){
     });
 
     let delBtn = (can && currentRole !== 'Invitado') ? `<button class="btn-delete" onclick="eliminarFila('${escapeAttr(r.ID)}')">❌</button>` : '';
-    html += `<td style="text-align:center; vertical-align:middle; position: sticky; right: 0; background: var(--surface); z-index: 10; box-shadow: -2px 0 5px rgba(0,0,0,0.05);">${delBtn}</td>`;
+    html += `<td style="text-align:center; vertical-align:middle; background: var(--surface);">${delBtn}</td>`;
     
     html += '</tr>';
   });
@@ -710,7 +703,13 @@ function startEdit(el, id, col){
       inp.innerHTML = '<option value=""></option>' + listasOpciones[col].map(opt => `<option value="${escapeAttr(opt)}" ${opt===v?'selected':''}>${escapeHtml(opt)}</option>`).join('');
   } else {
       inp = document.createElement('input');
-      inp.type = 'text'; 
+      // MODIFICADO: Soporte especial para correos electrónicos
+      if (col.toUpperCase().includes('CORREO')) {
+          inp.type = 'email';
+          inp.setAttribute('multiple', 'true');
+      } else {
+          inp.type = 'text'; 
+      }
       inp.className = 'cell-edit'; 
       inp.value = v;
       inp.setAttribute('autocomplete', 'off');
@@ -780,19 +779,32 @@ function onCellChange(el){
   
   let isMonth = isMonthCol(col);
   
+  // MODIFICADO: Restricción para asegurar formato de correo válido
+  if (col.toUpperCase().includes('CORREO') && v.trim() !== '') {
+      if (!v.includes('@') || !v.includes('.')) {
+          el.value = oldVal;
+          toast('⚠️ Formato de correo inválido, debe contener @ y .');
+          let parentTd = el.closest('td');
+          if (parentTd) {
+              parentTd.classList.add('error-flash');
+              setTimeout(()=>parentTd.classList.remove('error-flash'), 1000);
+          }
+          return;
+      }
+  }
+  
   if(isMonth){
       let origV = String(v).trim();
       if (origV === '') {
           v = '';
       } else {
-          // NUEVO: Regla estricta de porcentajes. Lo que el usuario escribe, ES el porcentaje.
           let numStr = origV.replace(',', '.').replace(/[^0-9.-]/g, '');
           let parsed = parseFloat(numStr);
           
           if(isNaN(parsed)) {
               v = '';
           } else {
-              v = parsed / 100; // 45 -> 0.45, 0.5 -> 0.005, 1 -> 0.01
+              v = parsed / 100;
           }
       }
       el.value = v !== '' ? parseFloat((v * 100).toFixed(2)) : '';
@@ -827,7 +839,7 @@ function onCellChange(el){
         if (u) u.value = v; else deltas.updates.push({ id, field: col, value: v });
     }
     
-    saveLocalDeltas(); // Persistencia local
+    saveLocalDeltas(); 
     triggerAutoSave();
   } else {
       if(!isMonth){
@@ -957,7 +969,7 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
         };
 
         deltas = { updates: [], adds: [], deletes: [] };
-        saveLocalDeltas(); // Actualizamos localmente que ya iniciamos el envío
+        saveLocalDeltas();
 
         const payload = {
             action: 'validarYGuardarDeltas',
@@ -974,7 +986,6 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
                     saveTimeoutId = null;
                     toast('✅ Guardado');
 
-                    // Si entraron nuevos cambios durante el guardado, los conservamos en el caché
                     if(deltas.adds.length > 0 || deltas.updates.length > 0 || deltas.deletes.length > 0) {
                         saveLocalDeltas();
                     } else {
@@ -997,7 +1008,6 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
             }
         }
 
-        // Si fallan todos los intentos, reincorporamos los cambios no guardados
         deltas.updates.unshift(...snapshot.updates);
         deltas.adds.unshift(...snapshot.adds);
         deltas.deletes.unshift(...snapshot.deletes);
@@ -1009,7 +1019,7 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
             else { seen.set(key, true); }
         }
 
-        saveLocalDeltas(); // Asegurar que el caché esté enterado del fallo
+        saveLocalDeltas(); 
         hasUnsavedChanges = true;
         saveTimeoutId = null;
         toast('❌ Error al guardar. Reintentando...');
@@ -1024,7 +1034,7 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
 
 function exportXLSX(){
   let filtered = getFiltered();
-  let visHeaders = headersOriginales.filter(h => h !== 'ID' && h !== 'SUBSECRETARIA' && h !== 'SUBSECRETARÍA');
+  let visHeaders = headersOriginales.filter(h => h !== 'ID');
   
   let rows = filtered.map(r => {
     let row = {};
