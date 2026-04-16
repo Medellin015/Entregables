@@ -149,7 +149,7 @@ td.month-cell{
   font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;position:relative;
 }
 
-/* NUEVO: Modificación de mapa de calor con el color Verde Oscuro solicitado */
+/* Modificación de mapa de calor con el color Verde Oscuro solicitado */
 td.month-cell.has-value { background: #009688 !important; color: #ffffff !important; border-color: rgba(0,0,0,0.1); }
 td.month-cell.has-value .cell-display:hover { background: rgba(0,0,0,0.15); border-color: transparent; }
 
@@ -355,11 +355,12 @@ function generateUUID() {
   return 'row_' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
 }
 
-// NUEVO: Identifica unificadamente si la columna es de meses
+// NUEVO: Función A Prueba de Balas para Identificar cualquier columna de Mes
 function isMonthCol(col) {
     if (!col) return false;
     let c = String(col).toLowerCase().trim();
-    return c.includes('pago') || c.includes('informe') || ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'].includes(c);
+    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic', 'pago', 'informe'];
+    return months.some(m => c.includes(m));
 }
 
 async function fetchAppScript(payload) {
@@ -499,7 +500,7 @@ function getFiltered(){
     if (s) {
         let match = false;
         for(let key of headersOriginales) {
-            if (key !== 'ID' && key !== 'SUBSECRETARIA' && String(r[key]||'').toLowerCase().includes(s)) {
+            if (key !== 'ID' && key !== 'SUBSECRETARIA' && key !== 'SUBSECRETARÍA' && String(r[key]||'').toLowerCase().includes(s)) {
                 match = true; break;
             }
         }
@@ -514,13 +515,33 @@ function getFiltered(){
       }
     }
 
-    // NUEVO 4: Filtro de filas por Mes. Si se selecciona "Noviembre", solo trae las filas que tengan valor en "Noviembre".
+    // 4. Filtro de FILAS por Mes: Solo muestra filas que tengan valor en el mes seleccionado
     if (viewMode !== 'todos') {
         let monthHasValue = false;
+        let viewPrefix = viewMode.substring(0,3);
+        
+        // Mapa de compatibilidad con columnas viejas (pago_0, informe_0, etc.)
+        let monthIndex = -1;
+        switch(viewMode) {
+            case 'julio': monthIndex = 5; break;
+            case 'agosto': monthIndex = 6; break;
+            case 'septiembre': monthIndex = 7; break;
+            case 'octubre': monthIndex = 8; break;
+            case 'noviembre': monthIndex = 9; break;
+            case 'diciembre': monthIndex = 10; break;
+        }
+
         for (let key of headersOriginales) {
             if (isMonthCol(key)) {
                 let keyLower = key.toLowerCase();
-                if (keyLower.includes(viewMode) || keyLower.includes(viewMode.substring(0,3))) {
+                let isTargetMonth = keyLower.includes(viewMode) || keyLower.includes(viewPrefix);
+                
+                // Si la columna aún se llama pago_X, asimilarla al mes
+                if (monthIndex !== -1 && (key === `pago_${monthIndex}` || key === `informe_${monthIndex}`)) {
+                    isTargetMonth = true;
+                }
+                
+                if (isTargetMonth) {
                     let v = r[key];
                     if (v !== '' && v !== null && v !== undefined) {
                         monthHasValue = true;
@@ -529,7 +550,7 @@ function getFiltered(){
                 }
             }
         }
-        if (!monthHasValue) return false;
+        if (!monthHasValue) return false; // Oculta la fila si no tiene valor en ese mes
     }
 
     return true;
@@ -548,16 +569,32 @@ function render(){
   }
 
   let filtered = getFiltered();
-  let visHeaders = headersOriginales.filter(h => h !== 'ID' && h !== 'SUBSECRETARIA');
+  let visHeaders = headersOriginales.filter(h => h !== 'ID' && h !== 'SUBSECRETARIA' && h !== 'SUBSECRETARÍA');
   
   let h = '<tr>';
   visHeaders.forEach(col => {
     let isMonthColumn = isMonthCol(col);
     
+    // Ocultar las columnas de los otros meses para mantener la tabla limpia
     if (isMonthColumn && viewMode !== 'todos') {
         let colLower = col.toLowerCase();
-        let shouldShow = colLower.includes(viewMode) || colLower.includes(viewMode.substring(0,3));
-        if(!shouldShow) return; 
+        let viewPrefix = viewMode.substring(0,3);
+        let monthIndex = -1;
+        switch(viewMode) {
+            case 'julio': monthIndex = 5; break;
+            case 'agosto': monthIndex = 6; break;
+            case 'septiembre': monthIndex = 7; break;
+            case 'octubre': monthIndex = 8; break;
+            case 'noviembre': monthIndex = 9; break;
+            case 'diciembre': monthIndex = 10; break;
+        }
+        
+        let isTargetMonth = colLower.includes(viewMode) || colLower.includes(viewPrefix);
+        if (monthIndex !== -1 && (col === `pago_${monthIndex}` || col === `informe_${monthIndex}`)) {
+            isTargetMonth = true;
+        }
+        
+        if(!isTargetMonth) return; // Si no es el mes seleccionado, lo oculta
     }
 
     let style = isMonthColumn ? '' : getColStyle(col);
@@ -573,8 +610,10 @@ function render(){
   thead.innerHTML = h;
   
   let html = '';
+  let subKeyGlobal = headersOriginales.includes('SUBSECRETARÍA') ? 'SUBSECRETARÍA' : 'SUBSECRETARIA';
+
   filtered.forEach((r,idx) => {
-    let can = checkPerm(r.SUBSECRETARIA);
+    let can = checkPerm(r[subKeyGlobal]);
     let cls = can ? 'editable' : 'locked';
     
     html += `<tr class="${cls}" style="animation-delay:${idx*0.015}s">`;
@@ -593,19 +632,32 @@ function render(){
 
         if (isMonthColumn && viewMode !== 'todos') {
             let colLower = col.toLowerCase();
-            let shouldShow = colLower.includes(viewMode) || colLower.includes(viewMode.substring(0,3));
-            if(!shouldShow) return; 
+            let viewPrefix = viewMode.substring(0,3);
+            let monthIndex = -1;
+            switch(viewMode) {
+                case 'julio': monthIndex = 5; break;
+                case 'agosto': monthIndex = 6; break;
+                case 'septiembre': monthIndex = 7; break;
+                case 'octubre': monthIndex = 8; break;
+                case 'noviembre': monthIndex = 9; break;
+                case 'diciembre': monthIndex = 10; break;
+            }
+            let isTargetMonth = colLower.includes(viewMode) || colLower.includes(viewPrefix);
+            if (monthIndex !== -1 && (col === `pago_${monthIndex}` || col === `informe_${monthIndex}`)) isTargetMonth = true;
+            if(!isTargetMonth) return; 
         }
 
         if (isMonthColumn) {
             let v = r[col];
             let hasVal = v !== '' && v !== null && v !== undefined;
             
-            let disp = hasVal ? (typeof v==='number' ? Math.round(v*100)+'%' : escapeHtml(v)) : '';
+            // Renderizado visual correcto del porcentaje
+            let numV = parseFloat(v);
+            let disp = hasVal ? (!isNaN(numV) ? parseFloat((numV*100).toFixed(2))+'%' : escapeHtml(v)) : '';
             let cls2 = 'month-cell' + (hasVal ? ' has-value' : '');
             
             if(can && currentRole !== 'Invitado') {
-                let inputVal = hasVal ? (typeof v==='number' ? Math.round(v*100) : escapeAttr(v)) : '';
+                let inputVal = hasVal ? (!isNaN(parseFloat(v)) ? parseFloat((parseFloat(v)*100).toFixed(2)) : escapeAttr(v)) : '';
                 let displayDiv = `<div class="cell-display" onclick="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.focus(); this.nextElementSibling.select();">${disp || '&nbsp;'}</div>`;
                 let editInput = `<input type="text" class="cell-edit month-input" style="display:none;" data-id="${escapeAttr(r.ID)}" data-col="${escapeAttr(col)}" value="${inputVal}">`;
                 html += `<td class="${cls2}">${displayDiv}${editInput}</td>`;
@@ -621,13 +673,13 @@ function render(){
         }
     });
 
-    // Celda de Total % General
+    // Celda de Total % General Unificado
     let totalHtml = '';
     if (hasMonthValues) {
-        let pct = Math.round(sumTotal * 100);
+        let pct = parseFloat((sumTotal * 100).toFixed(2));
         let color = pct === 100 ? 'var(--green)' : (pct > 100 ? 'var(--red)' : 'var(--amber)');
         let icon = pct === 100 ? '✅' : (pct > 100 ? '❌' : '⚠️');
-        totalHtml += `<div style="font-size:11px; color:${color}; font-weight:700; white-space:nowrap;" title="Total Porcentaje">${pct}% ${icon}</div>`;
+        totalHtml += `<div style="font-size:11px; color:${color}; font-weight:700; white-space:nowrap;" title="Suma de toda la fila">${pct}% ${icon}</div>`;
     }
     html += `<td id="total_${escapeAttr(r.ID)}" style="vertical-align:middle; text-align:center; background: var(--surface2); border-left: 2px solid var(--border);">${totalHtml}</td>`;
 
@@ -724,10 +776,10 @@ function updateLocalTotal(id) {
     if (totalTd) {
         let totalHtml = '';
         if (hasMonthValues) {
-            let pct = Math.round(sumTotal * 100);
+            let pct = parseFloat((sumTotal * 100).toFixed(2));
             let color = pct === 100 ? 'var(--green)' : (pct > 100 ? 'var(--red)' : 'var(--amber)');
             let icon = pct === 100 ? '✅' : (pct > 100 ? '❌' : '⚠️');
-            totalHtml += `<div style="font-size:11px; color:${color}; font-weight:700; white-space:nowrap;" title="Total Porcentaje">${pct}% ${icon}</div>`;
+            totalHtml += `<div style="font-size:11px; color:${color}; font-weight:700; white-space:nowrap;" title="Suma de toda la fila">${pct}% ${icon}</div>`;
         }
         totalTd.innerHTML = totalHtml;
     }
@@ -749,23 +801,32 @@ function onCellChange(el){
       } else {
           let isPct = origV.includes('%');
           let hasDecimal = origV.includes('.') || origV.includes(',');
-          // Extrae solo números, puntos y comas
-          let numStr = origV.replace(/[^0-9.,-]/g, '').replace(',', '.');
-          v = parseFloat(numStr);
-          if(isNaN(v)) {
+          
+          let numStr = origV.replace(',', '.').replace(/[^0-9.-]/g, '');
+          let parsed = parseFloat(numStr);
+          
+          if(isNaN(parsed)) {
               v = '';
           } else {
-              // Lógica de porcentaje: 
-              // Si puso % -> lo dividimos
-              // Si NO puso decimales -> asumimos porcentaje entero (ej. 45 -> 45%)
+              // Si puso % (ej. 45%), dividir por 100.
               if (isPct) {
-                  v = v / 100;
-              } else if (!hasDecimal) {
-                  v = v / 100; 
+                  v = parsed / 100;
+              } 
+              // Si es mayor a 1 o menor a -1, es seguro asumir que se refieren a un % entero (ej 45 -> 45%)
+              else if (Math.abs(parsed) > 1) {
+                  v = parsed / 100;
+              }
+              // Si es exactamente 1, asumimos 100%
+              else if (parsed === 1) {
+                  v = 1;
+              }
+              // Si es un decimal (ej 0.45), guardamos igual (0.45)
+              else {
+                  v = parsed; 
               }
           }
       }
-      el.value = v !== '' ? Math.round(v * 100) : '';
+      el.value = v !== '' ? parseFloat((v * 100).toFixed(2)) : '';
   }
   
   if(oldVal !== v){
@@ -774,7 +835,7 @@ function onCellChange(el){
     r[col] = v;
     
     if(isMonth) {
-        let disp = v !== '' ? Math.round(v * 100) + '%' : '&nbsp;';
+        let disp = v !== '' ? parseFloat((v * 100).toFixed(2)) + '%' : '&nbsp;';
         if(el.previousElementSibling) el.previousElementSibling.innerHTML = disp;
         
         let td = el.closest('td');
@@ -789,7 +850,6 @@ function onCellChange(el){
         el.replaceWith(newDiv);
     }
     
-    // Acumular en deltas 
     let addObj = deltas.adds.find(a => a.ID === id);
     if (addObj) {
         addObj[col] = v; 
@@ -818,9 +878,9 @@ function revertCellVisualError(id, col, oldVal, failedEl, errMsg) {
     let isMonth = isMonthCol(col);
     if (isMonth) {
         updateLocalTotal(id);
-        let disp = oldVal !== '' && oldVal !== null ? Math.round(oldVal * 100) + '%' : '&nbsp;';
+        let disp = oldVal !== '' && oldVal !== null ? parseFloat((oldVal * 100).toFixed(2)) + '%' : '&nbsp;';
         if (failedEl.previousElementSibling) failedEl.previousElementSibling.innerHTML = disp;
-        failedEl.value = oldVal !== '' && oldVal !== null ? Math.round(oldVal * 100) : '';
+        failedEl.value = oldVal !== '' && oldVal !== null ? parseFloat((oldVal * 100).toFixed(2)) : '';
         
         let td = failedEl.closest('td');
         if (oldVal !== '' && oldVal !== null) td.classList.add('has-value');
@@ -850,7 +910,9 @@ function addRow(){
   nr.ID = id;
   if(headersOriginales.includes('N')) nr.N = data.length + 1;
   if(headersOriginales.includes('N°')) nr['N°'] = data.length + 1;
-  if(headersOriginales.includes('SUBSECRETARIA')) nr.SUBSECRETARIA = currentRole === 'Equipo de Contratación' ? '' : currentRole;
+  
+  let subKey = headersOriginales.includes('SUBSECRETARÍA') ? 'SUBSECRETARÍA' : 'SUBSECRETARIA';
+  if(headersOriginales.includes(subKey)) nr[subKey] = currentRole === 'Equipo de Contratación' ? '' : currentRole;
   
   data.push(nr);
   deltas.adds.push(nr);
@@ -878,7 +940,9 @@ function addRow(){
 function eliminarFila(id) {
   let r = data.find(x => x.ID === id);
   if(!r) return;
-  if(!checkPerm(r.SUBSECRETARIA)) { toast('⚠️ No tienes permisos para eliminar esta fila'); return; }
+  
+  let subKey = headersOriginales.includes('SUBSECRETARÍA') ? 'SUBSECRETARÍA' : 'SUBSECRETARIA';
+  if(!checkPerm(r[subKey])) { toast('⚠️ No tienes permisos para eliminar esta fila'); return; }
   
   if(confirm("¿Estás seguro de que deseas eliminar esta fila por completo?")) {
     let rIdx = data.indexOf(r);
@@ -978,7 +1042,7 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
 
 function exportXLSX(){
   let filtered = getFiltered();
-  let visHeaders = headersOriginales.filter(h => h !== 'ID' && h !== 'SUBSECRETARIA');
+  let visHeaders = headersOriginales.filter(h => h !== 'ID' && h !== 'SUBSECRETARIA' && h !== 'SUBSECRETARÍA');
   
   let rows = filtered.map(r => {
     let row = {};
