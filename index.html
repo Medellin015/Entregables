@@ -122,7 +122,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);ove
 .table-area::-webkit-scrollbar-track{background:var(--surface2)}
 .table-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
 
-table{border-collapse:collapse;width:100%;font-size:12.5px}
+table{border-collapse:separate; border-spacing: 0; width:100%;font-size:12.5px}
 thead{position:sticky;top:0;z-index:50}
 th{
   background:var(--surface2);color:var(--text2);font-size:11px;font-weight:700;
@@ -131,9 +131,9 @@ th{
   white-space:nowrap;cursor:pointer;user-select:none;
 }
 th:hover{background:var(--surface3);color:var(--text)}
-th.month-col{min-width:45px;max-width:55px;text-align:center;font-size:10px;padding:8px 4px;}
-th.info-header{background:var(--surface3);border-bottom-color:var(--green)}
 
+/* Ampliación de columnas de los meses */
+th.month-col{min-width:80px;max-width:95px;text-align:center;font-size:11px;padding:8px 4px;}
 td{
   padding:9px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
   vertical-align:top;color:var(--text2);transition:background .15s;
@@ -145,11 +145,10 @@ tr.locked td{opacity:0.9; color:var(--text); background-color: #f9fafb;}
 
 td.col-num{text-align:center;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--accent2)}
 td.month-cell{
-  text-align:center;padding:6px 2px;min-width:45px;max-width:55px;
-  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;position:relative;
+  text-align:center;padding:6px 2px;min-width:80px;max-width:95px;
+  font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;position:relative;
 }
 
-/* Modificación de mapa de calor con el color Verde Oscuro solicitado */
 td.month-cell.has-value { background: #009688 !important; color: #ffffff !important; border-color: rgba(0,0,0,0.1); }
 td.month-cell.has-value .cell-display:hover { background: rgba(0,0,0,0.15); border-color: transparent; }
 
@@ -157,11 +156,11 @@ td.month-cell.has-value .cell-display:hover { background: rgba(0,0,0,0.15); bord
 .cell-edit:focus{background:var(--surface);box-shadow: 0 0 0 2px var(--accent-glow); border-radius:4px;padding:2px 4px}
 select.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text); max-width: 100%;}
 
-/* Inputs de mes: forzar fondo blanco para legibilidad sobre el color */
 input.month-input {
   background: #ffffff !important; color: var(--text) !important; border: 2px solid var(--accent) !important;
   border-radius: 4px; padding: 4px !important; height: 100%; text-align: center; font-weight: 600; width: 100%;
 }
+input.month-input::placeholder { color: var(--text3); font-weight: 400; font-size: 10px; }
 
 .cell-display{
   cursor:pointer;
@@ -355,7 +354,6 @@ function generateUUID() {
   return 'row_' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
 }
 
-// NUEVO: Función A Prueba de Balas para Identificar cualquier columna de Mes
 function isMonthCol(col) {
     if (!col) return false;
     let c = String(col).toLowerCase().trim();
@@ -379,31 +377,59 @@ async function fetchAppScript(payload) {
   }
 }
 
-// Variables Globales
 let data = [];
 let listasOpciones = {}; 
 let headersOriginales = []; 
 let currentRole = "Invitado";
 let pendingRole = "";
-let viewMode = "todos"; // Por defecto muestra todos
+let viewMode = "todos"; 
 let historyStack = [];
 let colFilters = {}; 
 let cfContext = {col:'', key:''};
 let searchTimeout = null;
 
-// Variables de Autoguardado por Lotes
 let deltas = { updates: [], adds: [], deletes: [] };
 let isSaving = false;
 let saveTimeoutId = null;
 let hasUnsavedChanges = false;
 
+// NUEVO: Funciones de almacenamiento local para evitar pérdida de datos si falla el internet
+function saveLocalDeltas() {
+    localStorage.setItem('cronograma_deltas', JSON.stringify(deltas));
+}
+
+function loadLocalDeltas() {
+    let cached = localStorage.getItem('cronograma_deltas');
+    if (cached) {
+        try {
+            let parsed = JSON.parse(cached);
+            if (parsed.adds.length > 0 || parsed.updates.length > 0 || parsed.deletes.length > 0) {
+                deltas = parsed;
+                hasUnsavedChanges = true;
+                triggerAutoSave();
+            }
+        } catch(e) { console.error("Error leyendo caché local:", e); }
+    }
+}
+
+function applyDeltasToData() {
+    if (!hasUnsavedChanges) return;
+    data = data.filter(r => !deltas.deletes.includes(r.ID));
+    deltas.updates.forEach(u => {
+        let r = data.find(x => x.ID === u.id);
+        if (r) r[u.field] = u.value;
+    });
+    deltas.adds.forEach(a => {
+        if (!data.find(x => x.ID === a.ID)) data.push(a);
+    });
+}
+
 window.addEventListener('beforeunload', function(e) {
     if (hasUnsavedChanges || saveTimeoutId || isSaving) {
-        e.preventDefault(); e.returnValue = 'Tienes cambios sin guardar.';
+        e.preventDefault(); e.returnValue = 'Tienes cambios pendientes de sincronizar con el servidor. Por favor espera.';
     }
 });
 
-// --- CARGA INICIAL ---
 window.onload = function() {
   fetchAppScript({ action: 'getInitialData' })
     .then(function(response) {
@@ -415,6 +441,10 @@ window.onload = function() {
           headersOriginales = Object.keys(data[0]); 
       }
       
+      // Aplicar cambios pendientes que no se alcanzaron a guardar en la sesión anterior
+      loadLocalDeltas();
+      applyDeltasToData();
+      
       initTopFilters();
       render();
       document.getElementById('loadingOverlay').style.display = 'none';
@@ -423,6 +453,9 @@ window.onload = function() {
       console.warn("Falló la conexión con la base de datos:", error);
       document.getElementById('loadingOverlay').style.display = 'none';
       toast('⚠️ Modo Offline o Error de conexión');
+      
+      loadLocalDeltas();
+      applyDeltasToData();
       initTopFilters();
       render();
     });
@@ -489,14 +522,12 @@ function getFiltered(){
   let s = searchEl ? searchEl.value.toLowerCase() : '';
   
   return data.filter(r => {
-    // 1. Filtros superiores dinámicos
     for(let sel of topFilters) {
         let col = sel.dataset.col;
         let val = sel.value;
         if(val && String(r[col]) !== val) return false;
     }
     
-    // 2. Filtro global de búsqueda
     if (s) {
         let match = false;
         for(let key of headersOriginales) {
@@ -507,7 +538,6 @@ function getFiltered(){
         if(!match) return false;
     }
     
-    // 3. Filtros del popup por columna
     for(let key in colFilters){
       if(colFilters[key] && colFilters[key].length > 0){
         let val = String(r[key]||'').trim();
@@ -515,43 +545,8 @@ function getFiltered(){
       }
     }
 
-    // 4. Filtro de FILAS por Mes: Solo muestra filas que tengan valor en el mes seleccionado
-    if (viewMode !== 'todos') {
-        let monthHasValue = false;
-        let viewPrefix = viewMode.substring(0,3);
-        
-        // Mapa de compatibilidad con columnas viejas (pago_0, informe_0, etc.)
-        let monthIndex = -1;
-        switch(viewMode) {
-            case 'julio': monthIndex = 5; break;
-            case 'agosto': monthIndex = 6; break;
-            case 'septiembre': monthIndex = 7; break;
-            case 'octubre': monthIndex = 8; break;
-            case 'noviembre': monthIndex = 9; break;
-            case 'diciembre': monthIndex = 10; break;
-        }
-
-        for (let key of headersOriginales) {
-            if (isMonthCol(key)) {
-                let keyLower = key.toLowerCase();
-                let isTargetMonth = keyLower.includes(viewMode) || keyLower.includes(viewPrefix);
-                
-                // Si la columna aún se llama pago_X, asimilarla al mes
-                if (monthIndex !== -1 && (key === `pago_${monthIndex}` || key === `informe_${monthIndex}`)) {
-                    isTargetMonth = true;
-                }
-                
-                if (isTargetMonth) {
-                    let v = r[key];
-                    if (v !== '' && v !== null && v !== undefined) {
-                        monthHasValue = true;
-                        break;
-                    }
-                }
-            }
-        }
-        if (!monthHasValue) return false; // Oculta la fila si no tiene valor en ese mes
-    }
+    // NUEVO: Se eliminó el filtro que ocultaba filas vacías cuando se selecciona un mes.
+    // Ahora puedes llenar tranquilamente un mes aunque la fila estuviera en blanco originalmente.
 
     return true;
   });
@@ -571,42 +566,47 @@ function render(){
   let filtered = getFiltered();
   let visHeaders = headersOriginales.filter(h => h !== 'ID' && h !== 'SUBSECRETARIA' && h !== 'SUBSECRETARÍA');
   
-  let h = '<tr>';
-  visHeaders.forEach(col => {
-    let isMonthColumn = isMonthCol(col);
-    
-    // Ocultar las columnas de los otros meses para mantener la tabla limpia
-    if (isMonthColumn && viewMode !== 'todos') {
-        let colLower = col.toLowerCase();
-        let viewPrefix = viewMode.substring(0,3);
-        let monthIndex = -1;
-        switch(viewMode) {
-            case 'julio': monthIndex = 5; break;
-            case 'agosto': monthIndex = 6; break;
-            case 'septiembre': monthIndex = 7; break;
-            case 'octubre': monthIndex = 8; break;
-            case 'noviembre': monthIndex = 9; break;
-            case 'diciembre': monthIndex = 10; break;
-        }
-        
-        let isTargetMonth = colLower.includes(viewMode) || colLower.includes(viewPrefix);
-        if (monthIndex !== -1 && (col === `pago_${monthIndex}` || col === `informe_${monthIndex}`)) {
-            isTargetMonth = true;
-        }
-        
-        if(!isTargetMonth) return; // Si no es el mes seleccionado, lo oculta
-    }
+  // Identificar qué columnas son visibles (para poder insertar la de Total al lado derecho de los meses)
+  let visibleCols = visHeaders.filter(col => {
+      let isMonthColumn = isMonthCol(col);
+      if (isMonthColumn && viewMode !== 'todos') {
+          let colLower = col.toLowerCase();
+          let viewPrefix = viewMode.substring(0,3);
+          let monthIndex = -1;
+          switch(viewMode) {
+              case 'julio': monthIndex = 5; break;
+              case 'agosto': monthIndex = 6; break;
+              case 'septiembre': monthIndex = 7; break;
+              case 'octubre': monthIndex = 8; break;
+              case 'noviembre': monthIndex = 9; break;
+              case 'diciembre': monthIndex = 10; break;
+          }
+          let isTargetMonth = colLower.includes(viewMode) || colLower.includes(viewPrefix);
+          if (monthIndex !== -1 && (col === `pago_${monthIndex}` || col === `informe_${monthIndex}`)) isTargetMonth = true;
+          return isTargetMonth; 
+      }
+      return true;
+  });
 
+  let lastVisibleMonthIdx = -1;
+  visibleCols.forEach((c, i) => { if(isMonthCol(c)) lastVisibleMonthIdx = i; });
+  
+  let h = '<tr>';
+  visibleCols.forEach((col, i) => {
+    let isMonthColumn = isMonthCol(col);
     let style = isMonthColumn ? '' : getColStyle(col);
     let extraClass = isMonthColumn ? ' month-col' : '';
     
     let fBtn = isMonthColumn ? '' : `<button class="filter-btn ${colFilters[col]?'active':''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
     h += `<th style="${style}" class="${extraClass}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
+    
+    // Insertar la columna TOTAL % justo después del último mes visible
+    if (i === lastVisibleMonthIdx) {
+        h += '<th style="width: 75px; min-width: 75px; text-align: center; border-left: 2px solid var(--accent); background: var(--surface2);">Total %</th>';
+    }
   });
   
-  // Agregar columna Total %
-  h += '<th style="width: 70px; text-align: center; border-left: 2px solid var(--accent);">Total %</th>';
-  h += '<th style="width: 50px; text-align: center;">⚙️</th></tr>';
+  h += '<th style="width: 50px; min-width: 50px; text-align: center; position: sticky; right: 0; background: var(--surface2); z-index: 60;">⚙️</th></tr>';
   thead.innerHTML = h;
   
   let html = '';
@@ -621,37 +621,21 @@ function render(){
     let sumTotal = 0;
     let hasMonthValues = false;
 
+    // Calculamos el Total general usando TODAS las columnas de la fila
     visHeaders.forEach(col => {
-        let isMonthColumn = isMonthCol(col);
-
-        // Validaciones para la columna Total general
-        if (isMonthColumn && r[col] !== '' && r[col] !== null && r[col] !== undefined) {
+        if (isMonthCol(col) && r[col] !== '' && r[col] !== null && r[col] !== undefined) {
             hasMonthValues = true;
             sumTotal += (parseFloat(r[col]) || 0);
         }
+    });
 
-        if (isMonthColumn && viewMode !== 'todos') {
-            let colLower = col.toLowerCase();
-            let viewPrefix = viewMode.substring(0,3);
-            let monthIndex = -1;
-            switch(viewMode) {
-                case 'julio': monthIndex = 5; break;
-                case 'agosto': monthIndex = 6; break;
-                case 'septiembre': monthIndex = 7; break;
-                case 'octubre': monthIndex = 8; break;
-                case 'noviembre': monthIndex = 9; break;
-                case 'diciembre': monthIndex = 10; break;
-            }
-            let isTargetMonth = colLower.includes(viewMode) || colLower.includes(viewPrefix);
-            if (monthIndex !== -1 && (col === `pago_${monthIndex}` || col === `informe_${monthIndex}`)) isTargetMonth = true;
-            if(!isTargetMonth) return; 
-        }
+    visibleCols.forEach((col, i) => {
+        let isMonthColumn = isMonthCol(col);
 
         if (isMonthColumn) {
             let v = r[col];
             let hasVal = v !== '' && v !== null && v !== undefined;
             
-            // Renderizado visual correcto del porcentaje
             let numV = parseFloat(v);
             let disp = hasVal ? (!isNaN(numV) ? parseFloat((numV*100).toFixed(2))+'%' : escapeHtml(v)) : '';
             let cls2 = 'month-cell' + (hasVal ? ' has-value' : '');
@@ -659,7 +643,8 @@ function render(){
             if(can && currentRole !== 'Invitado') {
                 let inputVal = hasVal ? (!isNaN(parseFloat(v)) ? parseFloat((parseFloat(v)*100).toFixed(2)) : escapeAttr(v)) : '';
                 let displayDiv = `<div class="cell-display" onclick="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.focus(); this.nextElementSibling.select();">${disp || '&nbsp;'}</div>`;
-                let editInput = `<input type="text" class="cell-edit month-input" style="display:none;" data-id="${escapeAttr(r.ID)}" data-col="${escapeAttr(col)}" value="${inputVal}">`;
+                // NUEVO: Placeholder claro "Ej: 45"
+                let editInput = `<input type="text" class="cell-edit month-input" placeholder="Ej: 45" style="display:none;" data-id="${escapeAttr(r.ID)}" data-col="${escapeAttr(col)}" value="${inputVal}">`;
                 html += `<td class="${cls2}">${displayDiv}${editInput}</td>`;
             } else { 
                 html += `<td class="${cls2}"><div class="cell-display" style="cursor:default;">${disp || '&nbsp;'}</div></td>`; 
@@ -671,21 +656,22 @@ function render(){
                 html += `<td>${mkEditable(r, col, can)}</td>`;
             }
         }
+
+        // Insertar el contenido de la columna TOTAL %
+        if (i === lastVisibleMonthIdx) {
+            let totalHtml = '';
+            if (hasMonthValues) {
+                let pct = parseFloat((sumTotal * 100).toFixed(2));
+                let color = pct === 100 ? 'var(--green)' : (pct > 100 ? 'var(--red)' : 'var(--amber)');
+                let icon = pct === 100 ? '✅' : (pct > 100 ? '❌' : '⚠️');
+                totalHtml += `<div style="font-size:11px; color:${color}; font-weight:700; white-space:nowrap;" title="Suma de toda la fila">${pct}% ${icon}</div>`;
+            }
+            html += `<td id="total_${escapeAttr(r.ID)}" style="vertical-align:middle; text-align:center; background: var(--surface2); border-left: 2px solid var(--border);">${totalHtml}</td>`;
+        }
     });
 
-    // Celda de Total % General Unificado
-    let totalHtml = '';
-    if (hasMonthValues) {
-        let pct = parseFloat((sumTotal * 100).toFixed(2));
-        let color = pct === 100 ? 'var(--green)' : (pct > 100 ? 'var(--red)' : 'var(--amber)');
-        let icon = pct === 100 ? '✅' : (pct > 100 ? '❌' : '⚠️');
-        totalHtml += `<div style="font-size:11px; color:${color}; font-weight:700; white-space:nowrap;" title="Suma de toda la fila">${pct}% ${icon}</div>`;
-    }
-    html += `<td id="total_${escapeAttr(r.ID)}" style="vertical-align:middle; text-align:center; background: var(--surface2); border-left: 2px solid var(--border);">${totalHtml}</td>`;
-
-    // Celda de acciones (botón eliminar)
     let delBtn = (can && currentRole !== 'Invitado') ? `<button class="btn-delete" onclick="eliminarFila('${escapeAttr(r.ID)}')">❌</button>` : '';
-    html += `<td style="text-align:center; vertical-align:middle;">${delBtn}</td>`;
+    html += `<td style="text-align:center; vertical-align:middle; position: sticky; right: 0; background: var(--surface); z-index: 10; box-shadow: -2px 0 5px rgba(0,0,0,0.05);">${delBtn}</td>`;
     
     html += '</tr>';
   });
@@ -799,31 +785,14 @@ function onCellChange(el){
       if (origV === '') {
           v = '';
       } else {
-          let isPct = origV.includes('%');
-          let hasDecimal = origV.includes('.') || origV.includes(',');
-          
+          // NUEVO: Regla estricta de porcentajes. Lo que el usuario escribe, ES el porcentaje.
           let numStr = origV.replace(',', '.').replace(/[^0-9.-]/g, '');
           let parsed = parseFloat(numStr);
           
           if(isNaN(parsed)) {
               v = '';
           } else {
-              // Si puso % (ej. 45%), dividir por 100.
-              if (isPct) {
-                  v = parsed / 100;
-              } 
-              // Si es mayor a 1 o menor a -1, es seguro asumir que se refieren a un % entero (ej 45 -> 45%)
-              else if (Math.abs(parsed) > 1) {
-                  v = parsed / 100;
-              }
-              // Si es exactamente 1, asumimos 100%
-              else if (parsed === 1) {
-                  v = 1;
-              }
-              // Si es un decimal (ej 0.45), guardamos igual (0.45)
-              else {
-                  v = parsed; 
-              }
+              v = parsed / 100; // 45 -> 0.45, 0.5 -> 0.005, 1 -> 0.01
           }
       }
       el.value = v !== '' ? parseFloat((v * 100).toFixed(2)) : '';
@@ -858,6 +827,7 @@ function onCellChange(el){
         if (u) u.value = v; else deltas.updates.push({ id, field: col, value: v });
     }
     
+    saveLocalDeltas(); // Persistencia local
     triggerAutoSave();
   } else {
       if(!isMonth){
@@ -917,6 +887,7 @@ function addRow(){
   data.push(nr);
   deltas.adds.push(nr);
   
+  saveLocalDeltas();
   render();
   triggerAutoSave();
   
@@ -955,6 +926,7 @@ function eliminarFila(id) {
     deltas.adds = deltas.adds.filter(a => a.ID !== id);
     deltas.updates = deltas.updates.filter(u => u.id !== id);
 
+    saveLocalDeltas();
     render();
     triggerAutoSave();
   }
@@ -985,6 +957,7 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
         };
 
         deltas = { updates: [], adds: [], deletes: [] };
+        saveLocalDeltas(); // Actualizamos localmente que ya iniciamos el envío
 
         const payload = {
             action: 'validarYGuardarDeltas',
@@ -1000,6 +973,13 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
                     hasUnsavedChanges = false;
                     saveTimeoutId = null;
                     toast('✅ Guardado');
+
+                    // Si entraron nuevos cambios durante el guardado, los conservamos en el caché
+                    if(deltas.adds.length > 0 || deltas.updates.length > 0 || deltas.deletes.length > 0) {
+                        saveLocalDeltas();
+                    } else {
+                        localStorage.removeItem('cronograma_deltas');
+                    }
 
                     if (result.report) {
                         let ignorados = result.report.updatesIgnorados || [];
@@ -1017,6 +997,7 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
             }
         }
 
+        // Si fallan todos los intentos, reincorporamos los cambios no guardados
         deltas.updates.unshift(...snapshot.updates);
         deltas.adds.unshift(...snapshot.adds);
         deltas.deletes.unshift(...snapshot.deletes);
@@ -1028,6 +1009,7 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
             else { seen.set(key, true); }
         }
 
+        saveLocalDeltas(); // Asegurar que el caché esté enterado del fallo
         hasUnsavedChanges = true;
         saveTimeoutId = null;
         toast('❌ Error al guardar. Reintentando...');
@@ -1113,6 +1095,7 @@ document.addEventListener('keydown', function(e){
             deltas.adds.push(last.row);
         }
         
+        saveLocalDeltas();
         render();
         triggerAutoSave();
         toast('✅ Fila restaurada');
@@ -1129,6 +1112,7 @@ document.addEventListener('keydown', function(e){
                 if (u) u.value = last.oldVal; else deltas.updates.push({ id: last.id, field: last.col, value: last.oldVal });
             }
             
+            saveLocalDeltas();
             render();
             triggerAutoSave();
             toast('✅ Deshecho');
