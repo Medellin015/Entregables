@@ -325,6 +325,17 @@ th:hover .filter-btn{opacity:1}
 </div>
 </div>
 
+<!-- NUEVO MODAL DE AVISO (POP-UP) -->
+<div class="modal-overlay" id="alertModal" style="z-index: 300;">
+  <div class="modal">
+    <h3 style="color: var(--amber);">⚠️ Aviso</h3>
+    <p id="alertMessage" style="margin-top: 10px; font-size: 14px;"></p>
+    <div class="modal-actions">
+      <button class="btn btn-accent" onclick="document.getElementById('alertModal').style.display='none'">Entendido</button>
+    </div>
+  </div>
+</div>
+
 <div id="colFilterPopup">
 <div class="popup-title"><span id="popupColName">Columna</span><button class="popup-close" onclick="closeColFilter()">✕</button></div>
 <input type="text" id="colFilterSearch" placeholder="🔍 Buscar..." autocomplete="off" oninput="searchColFilter()">
@@ -357,6 +368,12 @@ function isMonthCol(col) {
     let c = String(col).toLowerCase().trim();
     const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic', 'pago', 'informe'];
     return months.some(m => c.includes(m));
+}
+
+// Función para mostrar la ventana emergente de avisos
+function showAlert(msg) {
+    document.getElementById('alertMessage').textContent = msg;
+    document.getElementById('alertModal').style.display = 'flex';
 }
 
 async function fetchAppScript(payload) {
@@ -775,7 +792,7 @@ function onCellChange(el){
   if (col.toUpperCase().includes('CORREO') && v.trim() !== '') {
       if (!v.includes('@') || !v.includes('.')) {
           v = oldVal; 
-          toast('⚠️ Formato de correo inválido, debe contener @ y .');
+          showAlert('El formato de correo es inválido. Asegúrate de incluir "@" y un dominio válido (ej. ".com").');
           let parentTd = el.closest('td');
           if (parentTd) {
               parentTd.classList.add('error-flash');
@@ -794,7 +811,7 @@ function onCellChange(el){
           
           if(isNaN(parsed)) {
               v = oldVal; 
-              toast('⚠️ Valor inválido. Ingresa un número o porcentaje.');
+              showAlert('Valor inválido. Por favor, ingresa únicamente un número o porcentaje para los meses.');
               let parentTd = el.closest('td');
               if (parentTd) {
                   parentTd.classList.add('error-flash');
@@ -1042,6 +1059,62 @@ function exportXLSX(){
   });
   
   let ws = XLSX.utils.json_to_sheet(rows, {header: visHeaders});
+  let range = XLSX.utils.decode_range(ws['!ref']);
+  
+  const headerStyle = {
+    font: { bold: true, color: { rgb: "FFFFFF" } },
+    fill: { fgColor: { rgb: "4B5563" } },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: {
+      top: { style: "thin", color: { rgb: "D1D5DB" } },
+      bottom: { style: "thin", color: { rgb: "D1D5DB" } },
+      left: { style: "thin", color: { rgb: "D1D5DB" } },
+      right: { style: "thin", color: { rgb: "D1D5DB" } }
+    }
+  };
+
+  const dataStyle = {
+    alignment: { vertical: "top", wrapText: true },
+    border: {
+      top: { style: "thin", color: { rgb: "E5E7EB" } },
+      bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+      left: { style: "thin", color: { rgb: "E5E7EB" } },
+      right: { style: "thin", color: { rgb: "E5E7EB" } }
+    }
+  };
+
+  const monthStyle = {
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+      top: { style: "thin", color: { rgb: "E5E7EB" } },
+      bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+      left: { style: "thin", color: { rgb: "E5E7EB" } },
+      right: { style: "thin", color: { rgb: "E5E7EB" } }
+    }
+  };
+
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      let cell_address = {c:C, r:R};
+      let cell_ref = XLSX.utils.encode_cell(cell_address);
+      if(!ws[cell_ref]) continue;
+
+      if (R === 0) {
+        ws[cell_ref].s = headerStyle;
+      } else {
+        let colName = visHeaders[C];
+        if (isMonthCol(colName)) {
+          ws[cell_ref].s = monthStyle;
+          if(typeof ws[cell_ref].v === 'number') {
+            ws[cell_ref].z = "0%";
+          }
+        } else {
+          ws[cell_ref].s = dataStyle;
+        }
+      }
+    }
+  }
+  
   let wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Cronograma');
   ws['!cols'] = visHeaders.map(h => ({wch: h.length > 15 ? 30 : 15}));
