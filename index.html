@@ -60,7 +60,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);ove
 .header-left{display:flex;align-items:center;gap:16px}
 .logo-mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#0ea5e9);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;letter-spacing:-1px;box-shadow:0 4px 10px rgba(79,70,229,0.2)}
 .header h1{font-size:17px;font-weight:700;letter-spacing:-0.3px;color:var(--text)}
-.header .subtitle{font-size:11.5px;color:var(--text3);margin-top:2px;font-family:'JetBrains Mono',monospace;letter-spacing:0.5px}
 .controls{display:flex;gap:10px;align-items:center}
 .btn{
   padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);
@@ -268,7 +267,6 @@ th:hover .filter-btn{opacity:1}
 <div class="logo-mark">CE</div>
 <div>
 <h1>Cronograma de Entregables</h1>
-<div class="subtitle">MOD. 3 — CONTRATO 4600104433 / 2025</div>
 </div>
 </div>
 <div class="controls">
@@ -465,7 +463,6 @@ function initTopFilters(){
   
   if (headersOriginales.length === 0) return;
   
-  // MODIFICADO: Se quitó 'RESPONSABLE' del filtro superior
   let targetCols = headersOriginales.filter(h => 
      h.toUpperCase().includes('ENLACE') || 
      h.toUpperCase().includes('PROYECTO')
@@ -494,7 +491,6 @@ function setViewMode(m){
 function checkPerm(sub){
   if(currentRole === 'Equipo de Contratación') return true;
   if(currentRole === 'Invitado') return false;
-  // MODIFICADO: Si la fila no tiene subsecretaría asignada, solo Equipo de Contratación la edita.
   if(!sub || String(sub).trim() === '') return false; 
   return String(sub).trim().toUpperCase() === String(currentRole).trim().toUpperCase();
 }
@@ -560,7 +556,6 @@ function render(){
   }
 
   let filtered = getFiltered();
-  // MODIFICADO: Permite que SUBSECRETARÍA y SUBSECRETARIA se visualicen.
   let visHeaders = headersOriginales.filter(h => h !== 'ID');
   
   let visibleCols = visHeaders.filter(col => {
@@ -587,7 +582,6 @@ function render(){
   let lastVisibleMonthIdx = -1;
   visibleCols.forEach((c, i) => { if(isMonthCol(c)) lastVisibleMonthIdx = i; });
   
-  // MODIFICADO: Remover position: sticky de las últimas columnas
   let h = '<tr>';
   visibleCols.forEach((col, i) => {
     let isMonthColumn = isMonthCol(col);
@@ -703,7 +697,6 @@ function startEdit(el, id, col){
       inp.innerHTML = '<option value=""></option>' + listasOpciones[col].map(opt => `<option value="${escapeAttr(opt)}" ${opt===v?'selected':''}>${escapeHtml(opt)}</option>`).join('');
   } else {
       inp = document.createElement('input');
-      // MODIFICADO: Soporte especial para correos electrónicos
       if (col.toUpperCase().includes('CORREO')) {
           inp.type = 'email';
           inp.setAttribute('multiple', 'true');
@@ -779,17 +772,15 @@ function onCellChange(el){
   
   let isMonth = isMonthCol(col);
   
-  // MODIFICADO: Restricción para asegurar formato de correo válido
   if (col.toUpperCase().includes('CORREO') && v.trim() !== '') {
       if (!v.includes('@') || !v.includes('.')) {
-          el.value = oldVal;
+          v = oldVal; 
           toast('⚠️ Formato de correo inválido, debe contener @ y .');
           let parentTd = el.closest('td');
           if (parentTd) {
               parentTd.classList.add('error-flash');
               setTimeout(()=>parentTd.classList.remove('error-flash'), 1000);
           }
-          return;
       }
   }
   
@@ -802,12 +793,18 @@ function onCellChange(el){
           let parsed = parseFloat(numStr);
           
           if(isNaN(parsed)) {
-              v = '';
+              v = oldVal; 
+              toast('⚠️ Valor inválido. Ingresa un número o porcentaje.');
+              let parentTd = el.closest('td');
+              if (parentTd) {
+                  parentTd.classList.add('error-flash');
+                  setTimeout(()=>parentTd.classList.remove('error-flash'), 1000);
+              }
           } else {
               v = parsed / 100;
           }
       }
-      el.value = v !== '' ? parseFloat((v * 100).toFixed(2)) : '';
+      el.value = v !== '' && v !== null ? parseFloat((v * 100).toFixed(2)) : '';
   }
   
   if(oldVal !== v){
@@ -848,6 +845,8 @@ function onCellChange(el){
           newDiv.onclick = function() { startEdit(this, id, col); };
           newDiv.innerHTML = escapeHtml(oldVal) || '&nbsp;';
           el.replaceWith(newDiv);
+      } else {
+          el.value = oldVal !== '' && oldVal !== null ? parseFloat((oldVal * 100).toFixed(2)) : '';
       }
   }
 }
