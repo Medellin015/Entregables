@@ -131,7 +131,6 @@ th{
 }
 th:hover{background:var(--surface3);color:var(--text)}
 
-/* Ampliación de columnas de los meses */
 th.month-col{min-width:80px;max-width:95px;text-align:center;font-size:11px;padding:8px 4px;}
 td{
   padding:9px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
@@ -325,7 +324,6 @@ th:hover .filter-btn{opacity:1}
 </div>
 </div>
 
-<!-- NUEVO MODAL DE AVISO (POP-UP) -->
 <div class="modal-overlay" id="alertModal" style="z-index: 300;">
   <div class="modal">
     <h3 style="color: var(--amber);">⚠️ Aviso</h3>
@@ -363,14 +361,22 @@ function generateUUID() {
   return 'row_' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
 }
 
-function isMonthCol(col) {
+// Nueva lógica que separa meses base de estados y acumulados
+function isPeriodCol(col) {
     if (!col) return false;
     let c = String(col).toLowerCase().trim();
     const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic', 'pago', 'informe'];
     return months.some(m => c.includes(m));
 }
 
-// Función para mostrar la ventana emergente de avisos
+function isPercentageCol(col) {
+    if (!col) return false;
+    let c = String(col).toLowerCase().trim();
+    // Excluimos Estado y Acumulado para que no se sumen ni se resalten como meses
+    if (c.includes('estado') || c.includes('acumulado')) return false;
+    return isPeriodCol(col);
+}
+
 function showAlert(msg) {
     document.getElementById('alertMessage').textContent = msg;
     document.getElementById('alertModal').style.display = 'flex';
@@ -515,6 +521,8 @@ function checkPerm(sub){
 function getColStyle(col) {
     let c = col.toUpperCase().trim();
     if (c === 'N' || c === 'N°' || c === '#') return 'min-width:50px; text-align:center;';
+    if (c.includes('ESTADO')) return 'min-width:140px; text-align:center;';
+    if (c.includes('ACUMULADO')) return 'min-width:110px; text-align:center;';
     if (c.includes('PROGRAMA') || c.includes('ENLACE')) return 'min-width:180px;';
     if (c.includes('PROYECTO') || c.includes('ACTIVIDAD')) return 'min-width:200px;';
     if (c.includes('ENTREGABLE')) return 'min-width:280px;';
@@ -560,24 +568,10 @@ function getFiltered(){
     if (viewMode !== 'todos') {
         let monthHasValue = false;
         let viewPrefix = viewMode.substring(0,3);
-        let monthIndex = -1;
-        switch(viewMode) {
-            case 'julio': monthIndex = 5; break;
-            case 'agosto': monthIndex = 6; break;
-            case 'septiembre': monthIndex = 7; break;
-            case 'octubre': monthIndex = 8; break;
-            case 'noviembre': monthIndex = 9; break;
-            case 'diciembre': monthIndex = 10; break;
-        }
-
         for (let key of headersOriginales) {
-            if (isMonthCol(key)) {
+            if (isPeriodCol(key)) {
                 let keyLower = key.toLowerCase();
                 let isTargetMonth = keyLower.includes(viewMode) || keyLower.includes(viewPrefix);
-                
-                if (monthIndex !== -1 && (key === `pago_${monthIndex}` || key === `informe_${monthIndex}`)) {
-                    isTargetMonth = true;
-                }
                 
                 if (isTargetMonth) {
                     let v = r[key];
@@ -610,8 +604,8 @@ function render(){
   let visHeaders = headersOriginales.filter(h => h !== 'ID');
   
   let visibleCols = visHeaders.filter(col => {
-      let isMonthColumn = isMonthCol(col);
-      if (isMonthColumn && viewMode !== 'todos') {
+      let isPeriod = isPeriodCol(col);
+      if (isPeriod && viewMode !== 'todos') {
           let colLower = col.toLowerCase();
           let viewPrefix = viewMode.substring(0,3);
           let monthIndex = -1;
@@ -631,15 +625,17 @@ function render(){
   });
 
   let lastVisibleMonthIdx = -1;
-  visibleCols.forEach((c, i) => { if(isMonthCol(c)) lastVisibleMonthIdx = i; });
+  visibleCols.forEach((c, i) => { if(isPeriodCol(c)) lastVisibleMonthIdx = i; });
   
   let h = '<tr>';
   visibleCols.forEach((col, i) => {
-    let isMonthColumn = isMonthCol(col);
-    let style = isMonthColumn ? '' : getColStyle(col);
-    let extraClass = isMonthColumn ? ' month-col' : '';
+    let isPeriod = isPeriodCol(col);
+    let isPct = isPercentageCol(col);
     
-    let fBtn = isMonthColumn ? '' : `<button class="filter-btn ${colFilters[col]?'active':''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
+    let style = isPct ? '' : getColStyle(col);
+    let extraClass = isPct ? ' month-col' : '';
+    
+    let fBtn = isPeriod ? '' : `<button class="filter-btn ${colFilters[col]?'active':''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
     h += `<th style="${style}" class="${extraClass}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
     
     if (i === lastVisibleMonthIdx) {
@@ -663,16 +659,16 @@ function render(){
     let hasMonthValues = false;
 
     visHeaders.forEach(col => {
-        if (isMonthCol(col) && r[col] !== '' && r[col] !== null && r[col] !== undefined) {
+        if (isPercentageCol(col) && r[col] !== '' && r[col] !== null && r[col] !== undefined) {
             hasMonthValues = true;
             sumTotal += (parseFloat(r[col]) || 0);
         }
     });
 
     visibleCols.forEach((col, i) => {
-        let isMonthColumn = isMonthCol(col);
+        let isPct = isPercentageCol(col);
 
-        if (isMonthColumn) {
+        if (isPct) {
             let v = r[col];
             let hasVal = v !== '' && v !== null && v !== undefined;
             
@@ -689,8 +685,15 @@ function render(){
                 html += `<td class="${cls2}"><div class="cell-display" style="cursor:default;">${disp || '&nbsp;'}</div></td>`; 
             }
         } else {
+            // Evaluamos Estado y Acumulado
             if (col === 'N' || col === 'N°') {
                 html += `<td class="col-num">${escapeHtml(r[col]||'')}</td>`;
+            } else if (col.toLowerCase().includes('acumulado')) {
+                // Modo SOLO LECTURA inamovible
+                html += `<td style="text-align:center; vertical-align:middle; background:var(--surface2); font-weight:bold; color:var(--text);">${escapeHtml(r[col]||'')}</td>`;
+            } else if (col.toLowerCase().includes('estado')) {
+                // Permitir edicion mediante select
+                html += `<td style="text-align:center; vertical-align:middle;">${mkEditable(r, col, can)}</td>`;
             } else {
                 html += `<td>${mkEditable(r, col, can)}</td>`;
             }
@@ -742,10 +745,16 @@ function startEdit(el, id, col){
   let v = r[col]||'';
   let inp;
   
-  if (listasOpciones[col] && listasOpciones[col].length > 0) {
+  let listKey = col;
+  if (col.toLowerCase().includes('estado')) {
+      if (!listasOpciones[listKey] && listasOpciones['Estado']) listKey = 'Estado';
+      if (!listasOpciones[listKey] && listasOpciones['ESTADO']) listKey = 'ESTADO';
+  }
+
+  if (listasOpciones[listKey] && listasOpciones[listKey].length > 0) {
       inp = document.createElement('select');
       inp.className = 'cell-edit';
-      inp.innerHTML = '<option value=""></option>' + listasOpciones[col].map(opt => `<option value="${escapeAttr(opt)}" ${opt===v?'selected':''}>${escapeHtml(opt)}</option>`).join('');
+      inp.innerHTML = '<option value=""></option>' + listasOpciones[listKey].map(opt => `<option value="${escapeAttr(opt)}" ${opt===v?'selected':''}>${escapeHtml(opt)}</option>`).join('');
   } else {
       inp = document.createElement('input');
       if (col.toUpperCase().includes('CORREO')) {
@@ -795,7 +804,7 @@ function updateLocalTotal(id) {
     let sumTotal = 0;
     let hasMonthValues = false;
     for(let k in rObj) {
-        if(isMonthCol(k) && rObj[k] !== '' && rObj[k] !== null && rObj[k] !== undefined) { 
+        if(isPercentageCol(k) && rObj[k] !== '' && rObj[k] !== null && rObj[k] !== undefined) { 
             hasMonthValues = true; 
             sumTotal += (parseFloat(rObj[k]) || 0); 
         }
@@ -821,7 +830,7 @@ function onCellChange(el){
   let oldVal = r[col];
   let v = el.value;
   
-  let isMonth = isMonthCol(col);
+  let isPct = isPercentageCol(col);
   
   if (col.toUpperCase().includes('CORREO') && v.trim() !== '') {
       if (!v.includes('@') || !v.includes('.')) {
@@ -835,7 +844,7 @@ function onCellChange(el){
       }
   }
   
-  if(isMonth){
+  if(isPct){
       let origV = String(v).trim();
       if (origV === '') {
           v = '';
@@ -863,7 +872,7 @@ function onCellChange(el){
     if(historyStack.length>50) historyStack.shift();
     r[col] = v;
     
-    if(isMonth) {
+    if(isPct) {
         let disp = v !== '' ? parseFloat((v * 100).toFixed(2)) + '%' : '&nbsp;';
         if(el.previousElementSibling) el.previousElementSibling.innerHTML = disp;
         
@@ -890,7 +899,7 @@ function onCellChange(el){
     saveLocalDeltas(); 
     triggerAutoSave();
   } else {
-      if(!isMonth){
+      if(!isPct){
           let newDiv = document.createElement('div');
           newDiv.className = 'cell-display';
           newDiv.onclick = function() { startEdit(this, id, col); };
@@ -907,8 +916,8 @@ function revertCellVisualError(id, col, oldVal, failedEl, errMsg) {
     let r = data.find(x=>x.ID===id);
     if(r) r[col] = oldVal; 
     
-    let isMonth = isMonthCol(col);
-    if (isMonth) {
+    let isPct = isPercentageCol(col);
+    if (isPct) {
         updateLocalTotal(id);
         let disp = oldVal !== '' && oldVal !== null ? parseFloat((oldVal * 100).toFixed(2)) + '%' : '&nbsp;';
         if (failedEl.previousElementSibling) failedEl.previousElementSibling.innerHTML = disp;
@@ -1137,7 +1146,7 @@ function exportXLSX(){
         ws[cell_ref].s = headerStyle;
       } else {
         let colName = visHeaders[C];
-        if (isMonthCol(colName)) {
+        if (isPercentageCol(colName)) {
           ws[cell_ref].s = monthStyle;
           if(typeof ws[cell_ref].v === 'number') {
             ws[cell_ref].z = "0%";
