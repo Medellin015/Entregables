@@ -132,7 +132,7 @@ th{
 th:hover{background:var(--surface3);color:var(--text)}
 
 /* Ampliación de columnas de los meses */
-th.month-col{min-width:80px;max-width:95px;text-align:center;font-size:11px;padding:8px 4px;}
+th.month-col{min-width:80px;max-width:95px;text-align:left;font-size:11px;padding:8px 4px;}
 td{
   padding:9px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
   vertical-align:top;color:var(--text2);transition:background .15s;
@@ -142,14 +142,20 @@ tr:hover td{background:var(--surface2)}
 tr.editable td{color:var(--text)}
 tr.locked td{opacity:0.9; color:var(--text); background-color: #f9fafb;}
 
-td.col-num{text-align:center;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--accent2)}
+td.col-num{text-align:left;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--accent2)}
 td.month-cell{
-  text-align:center;padding:6px 2px;min-width:80px;max-width:95px;
+  text-align:left;padding:6px 2px;min-width:80px;max-width:95px;
   font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;position:relative;
 }
 
 td.month-cell.has-value { background: #009688 !important; color: #ffffff !important; border-color: rgba(0,0,0,0.1); }
 td.month-cell.has-value .cell-display:hover { background: rgba(0,0,0,0.15); border-color: transparent; }
+
+/* Clases dinámicas para Estados */
+td.estado-sin-revisar { background: var(--amber-bg) !important; color: var(--amber) !important; font-weight: 700; }
+td.estado-subsanaciones { background: var(--red-bg) !important; color: var(--red) !important; font-weight: 700; }
+td.estado-revisado-ok { background: var(--green-bg) !important; color: var(--green) !important; font-weight: 700; }
+td.estado-sin-revisar .cell-display:hover, td.estado-subsanaciones .cell-display:hover, td.estado-revisado-ok .cell-display:hover { background: rgba(0,0,0,0.05); border-color: transparent; }
 
 .cell-edit{width:100%;border:none;background:transparent;color:inherit;font:inherit;outline:none;padding:0;}
 .cell-edit:focus{background:var(--surface);box-shadow: 0 0 0 2px var(--accent-glow); border-radius:4px;padding:2px 4px}
@@ -157,7 +163,7 @@ select.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(-
 
 input.month-input {
   background: #ffffff !important; color: var(--text) !important; border: 2px solid var(--accent) !important;
-  border-radius: 4px; padding: 4px !important; height: 100%; text-align: center; font-weight: 600; width: 100%;
+  border-radius: 4px; padding: 4px !important; height: 100%; text-align: left; font-weight: 600; width: 100%;
 }
 input.month-input::placeholder { color: var(--text3); font-weight: 400; font-size: 10px; }
 
@@ -171,7 +177,7 @@ input.month-input::placeholder { color: var(--text3); font-weight: 400; font-siz
   height:calc(100% + 18px);
   display:flex;
   align-items:center;
-  justify-content:center;
+  justify-content:flex-start;
   transition:all .15s; 
   white-space: pre-wrap; 
   word-break: break-word;
@@ -362,7 +368,6 @@ function generateUUID() {
   return 'row_' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
 }
 
-// Nueva lógica que separa meses base de estados y acumulados
 function isPeriodCol(col) {
     if (!col) return false;
     let c = String(col).toLowerCase().trim();
@@ -373,7 +378,6 @@ function isPeriodCol(col) {
 function isPercentageCol(col) {
     if (!col) return false;
     let c = String(col).toLowerCase().trim();
-    // Excluimos Estado y Acumulado para que no se sumen ni se resalten como meses
     if (c.includes('estado') || c.includes('acumulado')) return false;
     return isPeriodCol(col);
 }
@@ -521,9 +525,9 @@ function checkPerm(sub){
 
 function getColStyle(col) {
     let c = col.toUpperCase().trim();
-    if (c === 'N' || c === 'N°' || c === '#') return 'min-width:50px; text-align:center;';
-    if (c.includes('ESTADO')) return 'min-width:140px; text-align:center;';
-    if (c.includes('ACUMULADO')) return 'min-width:110px; text-align:center;';
+    if (c === 'N' || c === 'N°' || c === '#') return 'min-width:50px; text-align:left;';
+    if (c.includes('ESTADO')) return 'min-width:140px; text-align:left;';
+    if (c.includes('ACUMULADO')) return 'min-width:110px; text-align:left;';
     if (c.includes('PROGRAMA') || c.includes('ENLACE')) return 'min-width:180px;';
     if (c.includes('PROYECTO') || c.includes('ACTIVIDAD')) return 'min-width:200px;';
     if (c.includes('ENTREGABLE')) return 'min-width:280px;';
@@ -570,8 +574,6 @@ function getFiltered(){
         let monthHasValue = false;
         let viewPrefix = viewMode.substring(0,3);
         for (let key of headersOriginales) {
-            // Evaluamos estricamente que sea la columna de porcentaje pura,
-            // de lo contrario un estado lleno podría hacer que la fila aparezca
             if (isPercentageCol(key)) {
                 let keyLower = key.toLowerCase();
                 let isTargetMonth = keyLower.includes(viewMode) || keyLower.includes(viewPrefix);
@@ -605,8 +607,6 @@ function render(){
 
   let filtered = getFiltered();
   let visHeaders = headersOriginales.filter(h => h !== 'ID');
-  
-  // Ahora visHeaders son las columnas visibles, SIEMPRE se muestran TODAS.
   let visibleCols = visHeaders;
 
   let lastVisibleMonthIdx = -1;
@@ -624,11 +624,11 @@ function render(){
     h += `<th style="${style}" class="${extraClass}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
     
     if (i === lastVisibleMonthIdx) {
-        h += '<th style="width: 70px; text-align: center; border-left: 2px solid var(--accent); background: var(--surface2);">Total %</th>';
+        h += '<th style="width: 70px; text-align: left; border-left: 2px solid var(--accent); background: var(--surface2);">Total %</th>';
     }
   });
   
-  h += '<th style="width: 50px; text-align: center; background: var(--surface2);">⚙️</th></tr>';
+  h += '<th style="width: 50px; text-align: left; background: var(--surface2);">⚙️</th></tr>';
   thead.innerHTML = h;
   
   let html = '';
@@ -670,21 +670,25 @@ function render(){
                 html += `<td class="${cls2}"><div class="cell-display" style="cursor:default;">${disp || '&nbsp;'}</div></td>`; 
             }
         } else {
-            // Evaluamos Estado y Acumulado
             if (col === 'N' || col === 'N°') {
                 html += `<td class="col-num">${escapeHtml(r[col]||'')}</td>`;
             } else if (col.toLowerCase().includes('acumulado')) {
-                // Modo SOLO LECTURA inamovible y formato porcentaje
                 let v = r[col];
                 let disp = '';
                 if (v !== '' && v !== null && v !== undefined) {
                     let numV = parseFloat(v);
                     disp = !isNaN(numV) ? parseFloat((numV * 100).toFixed(2)) + '%' : escapeHtml(v);
                 }
-                html += `<td style="text-align:center; vertical-align:middle; background:var(--surface2); font-weight:bold; color:var(--text);">${disp}</td>`;
+                html += `<td style="text-align:left; vertical-align:middle; background:var(--surface2); font-weight:bold; color:var(--text);">${disp}</td>`;
             } else if (col.toLowerCase().includes('estado')) {
-                // Permitir edicion mediante select
-                html += `<td style="text-align:center; vertical-align:middle;">${mkEditable(r, col, can)}</td>`;
+                let v = r[col] || '';
+                let valLower = String(v).trim().toLowerCase();
+                let estadoCls = '';
+                if (valLower === 'sin revisar') estadoCls = ' estado-sin-revisar';
+                else if (valLower === 'subsanaciones') estadoCls = ' estado-subsanaciones';
+                else if (valLower === 'revisado ok') estadoCls = ' estado-revisado-ok';
+                
+                html += `<td class="${estadoCls}" style="text-align:left; vertical-align:middle;">${mkEditable(r, col, can)}</td>`;
             } else {
                 html += `<td>${mkEditable(r, col, can)}</td>`;
             }
@@ -698,12 +702,12 @@ function render(){
                 let icon = pct === 100 ? '✅' : (pct > 100 ? '❌' : '⚠️');
                 totalHtml += `<div style="font-size:11px; color:${color}; font-weight:700; white-space:nowrap;" title="Suma de toda la fila">${pct}% ${icon}</div>`;
             }
-            html += `<td id="total_${escapeAttr(r.ID)}" style="vertical-align:middle; text-align:center; background: var(--surface2); border-left: 2px solid var(--border);">${totalHtml}</td>`;
+            html += `<td id="total_${escapeAttr(r.ID)}" style="vertical-align:middle; text-align:left; background: var(--surface2); border-left: 2px solid var(--border);">${totalHtml}</td>`;
         }
     });
 
     let delBtn = (can && currentRole !== 'Invitado') ? `<button class="btn-delete" onclick="eliminarFila('${escapeAttr(r.ID)}')">❌</button>` : '';
-    html += `<td style="text-align:center; vertical-align:middle; background: var(--surface);">${delBtn}</td>`;
+    html += `<td style="text-align:left; vertical-align:middle; background: var(--surface);">${delBtn}</td>`;
     
     html += '</tr>';
   });
@@ -877,6 +881,17 @@ function onCellChange(el){
         newDiv.onclick = function() { startEdit(this, id, col); };
         newDiv.innerHTML = escapeHtml(v) || '&nbsp;';
         el.replaceWith(newDiv);
+        
+        if (col.toLowerCase().includes('estado')) {
+            let td = newDiv.closest('td');
+            if (td) {
+                td.classList.remove('estado-sin-revisar', 'estado-subsanaciones', 'estado-revisado-ok');
+                let valLower = String(v).trim().toLowerCase();
+                if (valLower === 'sin revisar') td.classList.add('estado-sin-revisar');
+                else if (valLower === 'subsanaciones') td.classList.add('estado-subsanaciones');
+                else if (valLower === 'revisado ok') td.classList.add('estado-revisado-ok');
+            }
+        }
     }
     
     let addObj = deltas.adds.find(a => a.ID === id);
