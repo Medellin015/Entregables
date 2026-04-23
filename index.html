@@ -131,6 +131,7 @@ th{
 }
 th:hover{background:var(--surface3);color:var(--text)}
 
+/* Ampliación de columnas de los meses */
 th.month-col{min-width:80px;max-width:95px;text-align:center;font-size:11px;padding:8px 4px;}
 td{
   padding:9px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
@@ -569,7 +570,7 @@ function getFiltered(){
         let monthHasValue = false;
         let viewPrefix = viewMode.substring(0,3);
         for (let key of headersOriginales) {
-            if (isPeriodCol(key)) {
+            if (isPercentageCol(key)) {
                 let keyLower = key.toLowerCase();
                 let isTargetMonth = keyLower.includes(viewMode) || keyLower.includes(viewPrefix);
                 
@@ -625,7 +626,7 @@ function render(){
   });
 
   let lastVisibleMonthIdx = -1;
-  visibleCols.forEach((c, i) => { if(isPeriodCol(c)) lastVisibleMonthIdx = i; });
+  visibleCols.forEach((c, i) => { if(isPercentageCol(c)) lastVisibleMonthIdx = i; });
   
   let h = '<tr>';
   visibleCols.forEach((col, i) => {
