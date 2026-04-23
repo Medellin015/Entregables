@@ -674,8 +674,14 @@ function render(){
             if (col === 'N' || col === 'N°') {
                 html += `<td class="col-num">${escapeHtml(r[col]||'')}</td>`;
             } else if (col.toLowerCase().includes('acumulado')) {
-                // Modo SOLO LECTURA inamovible
-                html += `<td style="text-align:center; vertical-align:middle; background:var(--surface2); font-weight:bold; color:var(--text);">${escapeHtml(r[col]||'')}</td>`;
+                // Modo SOLO LECTURA inamovible y formato porcentaje
+                let v = r[col];
+                let disp = '';
+                if (v !== '' && v !== null && v !== undefined) {
+                    let numV = parseFloat(v);
+                    disp = !isNaN(numV) ? parseFloat((numV * 100).toFixed(2)) + '%' : escapeHtml(v);
+                }
+                html += `<td style="text-align:center; vertical-align:middle; background:var(--surface2); font-weight:bold; color:var(--text);">${disp}</td>`;
             } else if (col.toLowerCase().includes('estado')) {
                 // Permitir edicion mediante select
                 html += `<td style="text-align:center; vertical-align:middle;">${mkEditable(r, col, can)}</td>`;
@@ -878,7 +884,7 @@ function onCellChange(el){
         addObj[col] = v; 
     } else {
         let u = deltas.updates.find(x => x.id === id && x.field === col);
-        if (u) u.value = last.oldVal; else deltas.updates.push({ id: last.id, field: last.col, value: last.oldVal });
+        if (u) u.value = v; else deltas.updates.push({ id, field: col, value: v });
     }
     
     saveLocalDeltas(); 
@@ -1149,6 +1155,11 @@ function exportXLSX(){
           } else {
             ws[cell_ref].s = monthStyle;
           }
+          if(typeof ws[cell_ref].v === 'number') {
+            ws[cell_ref].z = "0%";
+          }
+        } else if (colName.toLowerCase().includes('acumulado')) {
+          ws[cell_ref].s = monthStyle;
           if(typeof ws[cell_ref].v === 'number') {
             ws[cell_ref].z = "0%";
           }
