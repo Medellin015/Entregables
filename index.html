@@ -570,6 +570,8 @@ function getFiltered(){
         let monthHasValue = false;
         let viewPrefix = viewMode.substring(0,3);
         for (let key of headersOriginales) {
+            // Evaluamos estricamente que sea la columna de porcentaje pura,
+            // de lo contrario un estado lleno podría hacer que la fila aparezca
             if (isPercentageCol(key)) {
                 let keyLower = key.toLowerCase();
                 let isTargetMonth = keyLower.includes(viewMode) || keyLower.includes(viewPrefix);
@@ -604,26 +606,8 @@ function render(){
   let filtered = getFiltered();
   let visHeaders = headersOriginales.filter(h => h !== 'ID');
   
-  let visibleCols = visHeaders.filter(col => {
-      let isPeriod = isPeriodCol(col);
-      if (isPeriod && viewMode !== 'todos') {
-          let colLower = col.toLowerCase();
-          let viewPrefix = viewMode.substring(0,3);
-          let monthIndex = -1;
-          switch(viewMode) {
-              case 'julio': monthIndex = 5; break;
-              case 'agosto': monthIndex = 6; break;
-              case 'septiembre': monthIndex = 7; break;
-              case 'octubre': monthIndex = 8; break;
-              case 'noviembre': monthIndex = 9; break;
-              case 'diciembre': monthIndex = 10; break;
-          }
-          let isTargetMonth = colLower.includes(viewMode) || colLower.includes(viewPrefix);
-          if (monthIndex !== -1 && (col === `pago_${monthIndex}` || col === `informe_${monthIndex}`)) isTargetMonth = true;
-          return isTargetMonth; 
-      }
-      return true;
-  });
+  // Ahora visHeaders son las columnas visibles, SIEMPRE se muestran TODAS.
+  let visibleCols = visHeaders;
 
   let lastVisibleMonthIdx = -1;
   visibleCols.forEach((c, i) => { if(isPercentageCol(c)) lastVisibleMonthIdx = i; });
@@ -894,7 +878,7 @@ function onCellChange(el){
         addObj[col] = v; 
     } else {
         let u = deltas.updates.find(x => x.id === id && x.field === col);
-        if (u) u.value = v; else deltas.updates.push({ id, field: col, value: v });
+        if (u) u.value = last.oldVal; else deltas.updates.push({ id: last.id, field: last.col, value: last.oldVal });
     }
     
     saveLocalDeltas(); 
@@ -1137,6 +1121,18 @@ function exportXLSX(){
     }
   };
 
+  const monthStyleValue = {
+    font: { bold: true, color: { rgb: "FFFFFF" } },
+    fill: { fgColor: { rgb: "009688" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+      top: { style: "thin", color: { rgb: "E5E7EB" } },
+      bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+      left: { style: "thin", color: { rgb: "E5E7EB" } },
+      right: { style: "thin", color: { rgb: "E5E7EB" } }
+    }
+  };
+
   for (let R = range.s.r; R <= range.e.r; ++R) {
     for (let C = range.s.c; C <= range.e.c; ++C) {
       let cell_address = {c:C, r:R};
@@ -1148,7 +1144,11 @@ function exportXLSX(){
       } else {
         let colName = visHeaders[C];
         if (isPercentageCol(colName)) {
-          ws[cell_ref].s = monthStyle;
+          if (ws[cell_ref].v !== undefined && ws[cell_ref].v !== '' && ws[cell_ref].v !== null) {
+            ws[cell_ref].s = monthStyleValue;
+          } else {
+            ws[cell_ref].s = monthStyle;
+          }
           if(typeof ws[cell_ref].v === 'number') {
             ws[cell_ref].z = "0%";
           }
