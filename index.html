@@ -754,7 +754,6 @@ function startEdit(el, id, col){
       inp = document.createElement('input');
       if (col.toUpperCase().includes('CORREO')) {
           inp.type = 'email';
-          inp.setAttribute('multiple', 'true');
       } else {
           inp.type = 'text'; 
       }
@@ -828,9 +827,10 @@ function onCellChange(el){
   let isPct = isPercentageCol(col);
   
   if (col.toUpperCase().includes('CORREO') && v.trim() !== '') {
-      if (!v.includes('@') || !v.includes('.')) {
+      let emailRegex = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+      if (!emailRegex.test(v.trim())) {
           v = oldVal; 
-          showAlert('El formato de correo es inválido. Asegúrate de incluir "@" y un dominio válido (ej. ".com").');
+          showAlert('El formato es inválido. Solo se permite un único correo electrónico (ej. usuario@dominio.com). No se admiten comas, punto y coma ni espacios.');
           let parentTd = el.closest('td');
           if (parentTd) {
               parentTd.classList.add('error-flash');
@@ -1320,8 +1320,13 @@ function closeColFilter(){ document.getElementById('colFilterPopup').style.displ
 function searchColFilter(){
   let q = document.getElementById('colFilterSearch').value.toLowerCase();
   document.querySelectorAll('#colFilterList label').forEach(l => {
-    let txt = l.textContent.toLowerCase();
-    l.style.display = txt.includes(q) ? 'flex' : 'none';
+    let cb = l.querySelector('input.cf-cb');
+    let fullVal = cb ? cb.value.toLowerCase() : l.textContent.toLowerCase();
+    let matches = q === '' ? true : fullVal.includes(q);
+    l.style.display = matches ? 'flex' : 'none';
+    if (cb && q !== '') {
+      cb.checked = matches;
+    }
   });
 }
 
